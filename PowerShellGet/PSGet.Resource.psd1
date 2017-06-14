@@ -70,6 +70,10 @@ ConvertFrom-StringData @'
         PublishModuleLocation=Module '{0}' was found in '{1}'.
         InvalidModuleToPublish=Module '{0}' cannot be published because it does not have a module manifest file. Run New-ModuleManifest -Path <PathName> to create a module manifest with metadata before publishing.         
         MissingRequiredManifestKeys=Module '{0}' cannot be published because it is missing required metadata. Verify that the module manifest specifies Description and Author.
+        
+        InvalidCharactersInPreReleaseString=The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string.
+        InsufficientVersionPartsForPreReleaseStringUsage=Version has less than 3 parts and a PreRelease string is specified. Version must have at least 3 parts for a PreRelease string to be used.
+        
         ModuleVersionShouldBeGreaterThanGalleryVersion=Module '{0}' with version '{1}' cannot be published. The version must exceed the current version '{2}' that exists in the repository '{3}', or you must specify -Force.
         ModuleVersionIsAlreadyAvailableInTheGallery=The module '{0}' with version '{1}' cannot be published as the current version '{2}' is already available in the repository '{3}'.
         CouldNotInstallNuGetProvider=NuGet provider is required to interact with NuGet-based repositories. Please ensure that '{0}' or newer version of NuGet provider is installed.

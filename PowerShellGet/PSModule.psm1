@@ -4578,7 +4578,7 @@ Feature 5
 #> 
 
 
-#
+
 function Test-ScriptFileInfo
 {
     <#
@@ -5900,7 +5900,6 @@ function Validate-ScriptFileInfoParameters
                                         $hasErrors = $true
                                     }
                                 }
-
     return (-not $hasErrors)
 }
 
@@ -12766,10 +12765,10 @@ function Get-InstalledScriptFilePath
 
 function Update-ModuleManifest
 {
-<#
-.ExternalHelp PSGet.psm1-help.xml
-#>
-[CmdletBinding(SupportsShouldProcess=$true,
+    <#
+    .ExternalHelp PSGet.psm1-help.xml
+    #>
+    [CmdletBinding(SupportsShouldProcess=$true,
                    PositionalBinding=$false,
                    HelpUri='https://go.microsoft.com/fwlink/?LinkId=619311')]
     Param
@@ -12942,7 +12941,11 @@ function Update-ModuleManifest
         [Parameter()]
         [string[]]
         $ReleaseNotes,
-                
+
+        [Parameter()]
+        [String]
+        $PreRelease,
+        
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [Uri]
@@ -13259,7 +13262,6 @@ function Update-ModuleManifest
         $params.Add("FunctionsToExport",($moduleInfo.ExportedFunctions.Keys -split ' '))
     }
     
-
     if($AliasesToExport)
     {
         $params.Add("AliasesToExport",$AliasesToExport)
@@ -13268,6 +13270,7 @@ function Update-ModuleManifest
     {
         $params.Add("AliasesToExport",($moduleInfo.ExportedAliases.Keys -split ' '))
     }
+
     if($VariablesToExport)
     {
         $params.Add("VariablesToExport",$VariablesToExport)
@@ -13276,6 +13279,7 @@ function Update-ModuleManifest
     { 
         $params.Add("VariablesToExport",($moduleInfo.ExportedVariables.Keys -split ' '))
     }
+
     if($CmdletsToExport)
     {
         $params.Add("CmdletsToExport", $CmdletsToExport)
@@ -13284,6 +13288,7 @@ function Update-ModuleManifest
     {
         $params.Add("CmdletsToExport",($moduleInfo.ExportedCmdlets.Keys -split ' '))
     }
+
     if($DscResourcesToExport)
     {
         #DscResourcesToExport field is not available in PowerShell version lower than 5.0
@@ -13391,9 +13396,9 @@ function Update-ModuleManifest
                 {
                     $PSData = $ExistingData["PSData"]
                     foreach($entry in $PSData.Keys)
-                            {
-                    $Data.Add($entry,$PSData[$Entry])
-                }
+                    {
+                        $Data.Add($entry,$PSData[$Entry])
+                    }
                 }
             }
         }
@@ -13424,7 +13429,6 @@ function Update-ModuleManifest
         {
            $Data["Tags"] = $Tags 
         }
-       
 
         #The following Uris and ReleaseNotes cannot be empty
         if($ProjectUri)
@@ -13436,6 +13440,7 @@ function Update-ModuleManifest
         {
             $Data["LicenseUri"] = $LicenseUri
         }
+
         if($IconUri)
         {
             $Data["IconUri"] = $IconUri
@@ -13445,6 +13450,25 @@ function Update-ModuleManifest
         {
             #If value is provided as an array, we append the string.
             $Data["ReleaseNotes"] = $($ReleaseNotes -join "`r`n")
+        }
+        
+        if ($PreRelease)
+        {
+            if ($ModuleVersion)
+            {
+                # if passing in a new version
+                $version = $ModuleVersion
+            }
+            else 
+            {
+                # otherwise, using existing version
+                $version = $moduleInfo.Version
+            }
+
+            if (Validate-PreReleaseString -Version $version -PreRelease $PreRelease -InfoObject $moduleInfo)
+            {
+                $Data["PreRelease"] = $PreRelease
+            }
         }
         
         if($ExternalModuleDependencies)
@@ -13601,31 +13625,32 @@ function Update-ModuleManifest
         }
     
     
-       $newContent = Microsoft.PowerShell.Management\Get-Content -Path $tempPath
-   
-       try{
-           #Ask for confirmation of the new manifest before replacing the original one
-           if($PSCmdlet.ShouldProcess($Path,$LocalizedData.UpdateManifestContentMessage+$newContent))
-           {
+        $newContent = Microsoft.PowerShell.Management\Get-Content -Path $tempPath
+    
+        try
+        {
+            #Ask for confirmation of the new manifest before replacing the original one
+            if($PSCmdlet.ShouldProcess($Path,$LocalizedData.UpdateManifestContentMessage+$newContent))
+            {
                 Microsoft.PowerShell.Management\Set-Content -Path $Path -Value $newContent -Confirm:$false -WhatIf:$false
-           }
+            }
 
-           #Return the new content if -PassThru is specified
-           if($PassThru)
-           {
-      	        return $newContent
-           }
-      }
-      catch
-      {
+            #Return the new content if -PassThru is specified
+            if($PassThru)
+            {
+                return $newContent
+            }
+        }
+        catch
+        {
             $message = $LocalizedData.ManifestFileReadWritePermissionDenied -f ($Path)
             ThrowError -ExceptionName "System.ArgumentException" `
-                       -ExceptionMessage $message `
-                       -ErrorId "ManifestFileReadWritePermissionDenied" `
-                       -ExceptionObject $Path `
-                       -CallerPSCmdlet $PSCmdlet `
-                       -ErrorCategory InvalidArgument
-      }
+                        -ExceptionMessage $message `
+                        -ErrorId "ManifestFileReadWritePermissionDenied" `
+                        -ExceptionObject $Path `
+                        -CallerPSCmdlet $PSCmdlet `
+                        -ErrorCategory InvalidArgument
+        }
     }
     finally
     {
@@ -13662,6 +13687,9 @@ function Get-PrivateData
         # ReleaseNotes of this module
         # ReleaseNotes = ''
 
+        # PreRelease string of this module
+        # PreRelease = ''
+
         # External dependent modules of this module
         # ExternalModuleDependencies = ''
 
@@ -13679,9 +13707,10 @@ function Get-PrivateData
     $IconUri = $PrivateData["IconUri"] | %{"'$_'"}
     $ReleaseNotesEscape = $PrivateData["ReleaseNotes"] -Replace "'","''"
     $ReleaseNotes = $ReleaseNotesEscape | %{"'$_'"}
+    $PreRelease = $PrivateData["PreRelease"] | %{"'$_'"}
     $ExternalModuleDependencies = $PrivateData["ExternalModuleDependencies"] -join "','" | %{"'$_'"} 
     
-    $DefaultProperties = @("Tags","LicenseUri","ProjectUri","IconUri","ReleaseNotes","ExternalModuleDependencies")
+    $DefaultProperties = @("Tags","LicenseUri","ProjectUri","IconUri","ReleaseNotes","PreRelease","ExternalModuleDependencies")
 
     $ExtraProperties = @()
     foreach($key in $PrivateData.Keys)
@@ -13735,6 +13764,11 @@ function Get-PrivateData
     {
         $ReleaseNotesLine = "ReleaseNotes = "+$ReleaseNotes
     }
+    $PreReleaseLine = "# PreRelease = ''"
+    if ($PreRelease -ne "''")
+    {
+        $PreReleaseLine = "PreRelease = " +$PreRelease
+    }
     $ExternalModuleDependenciesLine ="# ExternalModuleDependencies = @()"
     if($ExternalModuleDependencies -ne "''")
     {
@@ -13762,6 +13796,9 @@ function Get-PrivateData
 
         # ReleaseNotes of this module
         $ReleaseNotesLine
+
+        # PreRelease string of this module
+        $PreReleaseLine
 
         # External dependent modules of this module
         $ExternalModuleDependenciesLine
@@ -13793,6 +13830,9 @@ function Get-PrivateData
         # ReleaseNotes of this module
         $ReleaseNotesLine
 
+        # PreRelease string of this module
+        $PreReleaseLine
+
         # External dependent modules of this module
         $ExternalModuleDependenciesLine
 
@@ -13801,6 +13841,61 @@ function Get-PrivateData
  } # End of PrivateData hashtable" 
         return $content
     }
+}
+
+function Validate-PreReleaseString 
+{
+    [CmdletBinding(PositionalBinding=$false)]
+    Param 
+    (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $Version,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $PreRelease,
+
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        [Object]
+        $InfoObject
+    )
+
+    # Remove leading hyphen (if present)
+    if ( $PreRelease -and $PreRelease.StartsWith('-') )
+    {
+        $PreRelease = $PreRelease.Substring(1)
+    }
+
+    # only these characters are allowed in a prerelease string
+    $validCharacters = "^[a-zA-Z0-9]+$"
+    $prereleaseStringValid = $PreRelease -match $validCharacters
+    if (-not $prereleaseStringValid)
+    {
+        ThrowError -ExceptionName "System.InvalidOperationException" `
+                   -ExceptionMessage $LocalizedData.InvalidCharactersInPreReleaseString `
+                   -ErrorId "InvalidCharactersInPreReleaseString" `
+                   -CallerPSCmdlet $PSCmdlet `
+                   -ErrorCategory InvalidOperation `
+                   -ExceptionObject $InfoObject
+    }
+
+    # Validate that Version contains at least 3 parts
+    $versionPartsCount = $Version.Split('.').Count
+    if ( $versionPartsCount -lt 3 )
+    {
+        ThrowError -ExceptionName "System.InvalidOperationException" `
+                   -ExceptionMessage $LocalizedData.InsufficientVersionPartsForPreReleaseStringUsage `
+                   -ErrorId "InsufficientVersionPartsForPreReleaseStringUsage" `
+                   -CallerPSCmdlet $PSCmdlet `
+                   -ErrorCategory InvalidOperation `
+                   -ExceptionObject $InfoObject
+    }
+
+    return $true
 }
 
 function Copy-ScriptFile

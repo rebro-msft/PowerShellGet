@@ -262,10 +262,11 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
 
         Set-Content "$script:UpdateModuleManifestBase\$script:UpdateModuleManifestName.psm1" -Value "function Get-$script:UpdateModuleManifestName { Get-Date }"
         $Guid =  [System.Guid]::Newguid().ToString()
-        $Version = "2.0"
+        $Version = "2.0.0"
         $Description = "$script:UpdateModuleManifestName module"
         $ProcessorArchitecture = $env:PROCESSOR_ARCHITECTURE
         $ReleaseNotes = "$script:UpdateModuleManifestName release notes"
+        $PreRelease = "-alpha001"
         $Tags = "PSGet","DSC"
         $ProjectUri = "http://$script:UpdateModuleManifestName.com/Project"
         $IconUri = "http://$script:UpdateModuleManifestName.com/Icon"
@@ -323,6 +324,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         $ParamsV5.Add("LicenseUri",$LicenseUri)
         $ParamsV5.Add("IconUri",$IconUri)
         $ParamsV5.Add("ReleaseNotes",$ReleaseNotes)
+        $ParamsV5.Add("PreRelease",$PreRelease)
 
         if(($PSVersionTable.PSVersion -ge '3.0.0') -or ($PSVersionTable.Version -le '4.0.0'))
         {
@@ -341,7 +343,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         AssertEquals $newModuleInfo.CompanyName $CompanyName "Company name should be $($CompanyName)"
         AssertEquals $newModuleInfo.CopyRight $CopyRight "Copyright should be $($CopyRight)"
         AssertEquals $newModuleInfo.RootModule $RootModule "RootModule should be $($RootModule)"
-        AssertEquals $newModuleInfo.Version.Major $Version "Module version should be $($Version)"
+        AssertEquals $newModuleInfo.Version $Version "Module version should be $($Version)"
         AssertEquals $newModuleInfo.Description $Description "Description should be $($Description)"
         AssertEquals $newModuleInfo.ProcessorArchitecture $ProcessorArchitecture "Processor architecture name should be $($ProcessorArchitecture)"
         AssertEquals $newModuleInfo.ClrVersion $ClrVersion "ClrVersion should be $($ClrVersion)"
@@ -366,6 +368,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
             AssertEquals $newModuleInfo.LicenseUri $LicenseUri "LicenseUri should be $($LicenseUri)"
             AssertEquals $newModuleInfo.IconUri $IconUri "IconUri should be $($IconUri)"
             AssertEquals $newModuleInfo.ReleaseNotes $ReleaseNotes "ReleaseNotes should be $($ReleaseNotes)"
+            AssertEquals $newModuleInfo.PrivateData.PSData.PreRelease $PreRelease "PreRelease should be $($PreRelease)"
         }
        
         $newModuleInfo.HelpInfoUri | Should Be $HelpInfoURI
@@ -453,7 +456,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
     #
     # Expected Result: Update-ModuleManifest should throw warnings about DscResourcesToExport not supported
     #
-     It UpdateModuleManifesWithExportedDSCResourcesInLowerPowerShellVersion {
+    It UpdateModuleManifesWithExportedDSCResourcesInLowerPowerShellVersion {
         #When running on lower versin of PowerShell
         if($PSVersionTable.PSVersion -lt '5.0.0')
         {
@@ -849,7 +852,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
     #
     # Expected Result: Update-ModuleManifest should throw warnings about CompatiblePSEditions not supported
     #
-     It UpdateModuleManifesWithCompatiblePSEditionsInLowerPowerShellVersion {
+    It UpdateModuleManifesWithCompatiblePSEditionsInLowerPowerShellVersion {
         $CompatiblePSEditions = @('Desktop', 'Core')
         New-ModuleManifest -path $script:testManifestPath
 
@@ -896,4 +899,68 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         Assert ($newModuleInfo.CompatiblePSEditions -contains $CompatiblePSEditions[1]) "CompatiblePSEditions should include $($CompatiblePSEditions[1])"
     } `
     -Skip:$($PSVersionTable.PSVersion -lt '5.1.0')
+
+    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string with invalid characters
+    #
+    # Action:
+    #      Update-ModuleManifest -Path [Path] -PreRelease '-alpha+001'
+    #
+    # Expected Result: Update-ModuleManifest should throw InvalidCharactersInPreReleaseString errorid.
+    #
+    It UpdateModuleManifestWithInvalidPreReleaseString {
+        $PreRelease = "-alpha+001" 
+        $Version = "3.2.1"
+
+        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Validate-PreReleaseString"
+
+        $ScriptBlock = {
+            New-ModuleManifest -path $script:testManifestPath
+            Update-ModuleManifest -Path $script:testManifestPath -PreRelease $PreRelease -ModuleVersion $Version -Confirm:$false
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    } 
+
+    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string when the version is too short.
+    #
+    # Action:
+    #      Update-ModuleManifest -Path [Path] -ModuleVersion '3.2' -PreRelease '-alpha001'
+    #
+    # Expected Result: Update-ModuleManifest should throw InsufficientVersionPartsForPreReleaseString errorid.
+    #
+    It UpdateModuleManifestWithPreReleaseStringAndShortModuleVersion {
+        $PreRelease = "-alpha001" 
+        $Version = "3.2"
+
+        $expectedErrorMessage = "Version has less than 3 parts and a PreRelease string is specified. Version must have at least 3 parts for a PreRelease string to be used."
+        $expectedFullyQualifiedErrorId = "InsufficientVersionPartsForPreReleaseStringUsage,Validate-PreReleaseString"
+
+        $ScriptBlock = {
+            New-ModuleManifest -path $script:testManifestPath
+            Update-ModuleManifest -Path $script:testManifestPath -PreRelease $PreRelease -ModuleVersion $Version -Confirm:$false
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    } 
+    
+    # Purpose: Validate Update-ModuleManifest cmdlet in PowerShell version greater than 5.0 when passed valid PreRelease string and module version.
+    #
+    # Action:
+    #      Update-ModuleManifest -Path [Path] -ModuleVersion '3.2.1' -PreRelease '-alpha001'
+    #
+    # Expected Result: Update-ModuleManifest should update the PreRelease and Version fields in module manifest file.
+    #
+    It UpdateModuleManifestWithValidPreReleaseAndModuleVersion {
+        $PreRelease = "-alpha001" 
+        $Version = "3.2.1"
+
+        New-ModuleManifest -path $script:testManifestPath 
+        Update-ModuleManifest -Path $script:testManifestPath -PreRelease $PreRelease -ModuleVersion $Version -Confirm:$false
+
+        $newModuleInfo = Test-ModuleManifest -Path $script:testManifestPath
+
+        $newModuleInfo.Version | Should -Match $Version
+        $newModuleInfo.PrivateData.PSData.PreRelease | Should -Match $PreRelease
+    } 
 }
