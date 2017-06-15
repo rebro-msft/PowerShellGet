@@ -1,13 +1,13 @@
 ﻿<#####################################################################################
  # File: PSGetUpdateScriptInfo.Tests.ps1
- # Tests for PSGet ScriptInfo functionality
+ # Tests for PSGet ScriptFileInfo functionality
  #
  # Copyright (c) Microsoft Corporation, 2015
  #####################################################################################>
 
 <#
    Name: PowerShell.PSGet.UpdateScriptInfo.Tests
-   Description: Tests for Update-ScriptInfo cmdlet functionality
+   Description: Tests for Update-ScriptFileInfo cmdlet functionality
 
    Local PSGet Test Gallery (ex: http://localhost:8765/packages) is pre-populated with static scripts:
         Fabrikam-ClientScript: versions 1.0, 1.5, 2.0, 2.5
@@ -117,6 +117,7 @@ $ScriptFileInfoProperties = @{
 	ReleaseNotes='Test Script version 1.2.3.4'
 }
 
+
 Describe "Update Existing Script Info" -tag CI {
 
     BeforeAll {
@@ -127,29 +128,86 @@ Describe "Update Existing Script Info" -tag CI {
         SuiteCleanup
     }
 
+    BeforeEach {
+        $scriptName = 'Fabrikam-ServerScript'
+        Install-Script $scriptName
+		$Script = Get-InstalledScript -Name $scriptName
+		$script:ScriptFilePath = Join-Path -Path $script.InstalledLocation -ChildPath "$scriptName.ps1"
+    }
+
     AfterEach {
         Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
         Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
     }
 
-    # Purpose: UpdateScriptWithConfirmAndNoToPrompt
+    # Purpose: Update a script file info with all parameters
     #
-    # Action: Update-Script Fabrikam-ServerScript -Confirm
+    # Action: Update-ScriptFileInfo [path] -Version -Author -Guid -Description ...
     #
-    # Expected Result: script should not be updated after confirming NO
+    # Expected Result: Script should update all fields.
     #
- 
-    It "UpdateScriptFileInfo" {
-        $scriptName = 'Fabrikam-ServerScript'
-        Install-Script $scriptName -Scope AllUsers
-		$Script = Get-InstalledScript -Name $scriptName
-		$ScriptFilePath = Join-Path -Path $script.InstalledLocation -ChildPath "$scriptName.ps1"
+    It "UpdateScriptFileWithAllFields" {
+        Update-ScriptFileInfo -Path $script:ScriptFilePath @ScriptFileInfoProperties
 
-        Update-ScriptFileInfo -Path $ScriptFilePath @ScriptFileInfoProperties
-		$ScriptFileInfo = Test-ScriptFileInfo -Path $ScriptFilePath
+		$ScriptFileInfo = Test-ScriptFileInfo -Path $script:ScriptFilePath
+
 		foreach ($Prop in $ScriptFileInfoProperties.Keys)
 		{
             $ScriptFileInfo.$Prop | Should be $ScriptFileInfoProperties[$Prop]
 		}
+    }
+
+    # Purpose: Update a script file info with an invalid PreRelease string
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1-alpha+001
+    #
+    # Expected Result: Update-ScriptFileInfo should throw InvalidCharactersInPreReleaseString errorid.
+    #
+    It "UpdateScriptFileWithInvalidPreReleaseString" {
+        $Version = "3.2.1-alpha+001"
+
+        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Validate-PreReleaseString"
+
+        $ScriptBlock = {
+            Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Update a script file info with an PreRelease string when the version has insufficient parts.
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2-alpha+001
+    #
+    # Expected Result: Update-ScriptFileInfo should throw InsufficientVersionPartsForPreReleaseString errorid.
+    #
+    It "UpdateScriptFileWithPreReleaseStringAndShortVersion" {
+        $Version = "3.2-alpha001"
+
+        $expectedErrorMessage = "Version has less than 3 parts and a PreRelease string is specified. Version must have at least 3 parts for a PreRelease string to be used."
+        $expectedFullyQualifiedErrorId = "InsufficientVersionPartsForPreReleaseStringUsage,Validate-PreReleaseString"
+
+        $ScriptBlock = {
+            Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+    
+    # Purpose: Update a script file info with a valid PreRelease string and a version with sufficient parts.
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1-alpha001
+    #
+    # Expected Result: Update-ScriptFileInfo should successfully update the version field.
+    #
+    It "UpdateScriptFileWithValidPreReleaseAndVersion" {
+        $Version = "3.2.1-alpha001"
+
+        Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+
+        $newScriptInfo = Test-ScriptFileInfo -Path $script:ScriptFilePath
+
+        $newScriptInfo.Version | Should -Match $Version
     }
 }

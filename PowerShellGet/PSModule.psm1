@@ -4906,6 +4906,16 @@ function Test-ScriptFileInfo
             return
         }
 
+        if ($PSScriptInfo.Version -match '-')
+        {
+            # Version contains PreRelease string.  Break apart and validate separately.
+            $indexOfFirstHyphen = $PSScriptInfo.Version.IndexOf('-')
+            $versionSubstring = $PSScriptInfo.Version.Substring(0, $indexOfFirstHyphen)
+            $preReleaseSubstring = $PSScriptInfo.Version.Substring($indexOfFirstHyphen+1)
+
+            $preReleaseIsValid = Validate-PreReleaseString -Version $versionSubstring -PreRelease $preReleaseSubstring -InfoObject $PSScriptInfo
+        }
+
         $PSScriptInfo = Get-OrderedPSScriptInfoObject -PSScriptInfo $PSScriptInfo
 
         return $PSScriptInfo
@@ -4931,7 +4941,7 @@ function New-ScriptFileInfo
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [Version]
+        [String]
         $Version,
 
         [Parameter()]
@@ -5057,7 +5067,7 @@ function New-ScriptFileInfo
 
         if(-not $Version)
         {
-            $Version = [Version]'1.0'
+            $Version = '1.0'
         }
 
         if(-not $Author)
@@ -5187,7 +5197,7 @@ function Update-ScriptFileInfo
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [Version]
+        [String]
         $Version,
 
         [Parameter()]
@@ -5274,6 +5284,7 @@ function Update-ScriptFileInfo
 
     Process
     {
+        # Resolve the script path
         $scriptFilePath = $null
         if($Path)
         {
@@ -5322,6 +5333,7 @@ function Update-ScriptFileInfo
             return
         }
         
+        # Obtain script info
         $psscriptInfo = $null
         try
         {
@@ -5350,7 +5362,7 @@ function Update-ScriptFileInfo
 
             if(-not $Version)
             {
-                $Version = [Version]'1.0'
+                $Version = [String]'1.0'
             }
 
             if(-not $Author)
@@ -5461,6 +5473,7 @@ function Update-ScriptFileInfo
 			PrivateData = $PrivateData
         }
 
+        # Ensure no fields contain '<#' or '#>' (would break comment section)
         if(-not (Validate-ScriptFileInfoParameters -parameters $params))
         {
             return
@@ -5775,7 +5788,7 @@ function Get-PSScriptInfoString
     (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [Version]
+        [String]
         $Version,
 
         [Parameter(Mandatory=$true)]
@@ -8583,22 +8596,53 @@ function ValidateAndAdd-PSScriptInfoEntry
                             $KeyName = $script:Version
 
                             [Version]$Version = $null
+                            
+                            # Special case for prerelease string in version field, must pull out before parsing version
+                            if ($Value -match '-') 
+                            {
+                                [String]$PreRelease = $null
 
-                            if([System.Version]::TryParse($Value, ([ref]$Version)))
-                            {
-                                $Value = $Version                            
+                                $indexOfFirstHyphen = $Value.IndexOf('-')
+                                $versionSubstring = $Value.Substring(0, $indexOfFirstHyphen)
+                                $preReleaseSubstring = $Value.Substring($indexOfFirstHyphen+1)
+
+                                if( [System.Version]::TryParse($versionSubstring, ([ref]$Version)) -and 
+                                    (Validate-PreReleaseString -Version $versionSubstring -PreRelease $preReleaseSubstring -InfoObject $Value) )
+                                {
+                                    $Value = [String]$Version + '-' + $preReleaseSubstring
+                                }
+                                else
+                                {
+                                    $message = $LocalizedData.InvalidVersion -f ($Value)
+                                    ThrowError -ExceptionName "System.ArgumentException" `
+                                                -ExceptionMessage $message `
+                                                -ErrorId "InvalidVersion" `
+                                                -CallerPSCmdlet $CallerPSCmdlet `
+                                                -ErrorCategory InvalidArgument `
+                                                -ExceptionObject $Value
+                                    return
+                                }
                             }
-                            else
+                            else 
                             {
-                                $message = $LocalizedData.InvalidVersion -f ($Value)
-                                ThrowError -ExceptionName "System.ArgumentException" `
-                                            -ExceptionMessage $message `
-                                            -ErrorId "InvalidVersion" `
-                                            -CallerPSCmdlet $CallerPSCmdlet `
-                                            -ErrorCategory InvalidArgument `
-                                            -ExceptionObject $Value
-                                return
+                                if([System.Version]::TryParse($Value, ([ref]$Version)))
+                                {
+                                    $Value = $Version                            
+                                }
+                                else
+                                {
+                                    $message = $LocalizedData.InvalidVersion -f ($Value)
+                                    ThrowError -ExceptionName "System.ArgumentException" `
+                                                -ExceptionMessage $message `
+                                                -ErrorId "InvalidVersion" `
+                                                -CallerPSCmdlet $CallerPSCmdlet `
+                                                -ErrorCategory InvalidArgument `
+                                                -ExceptionObject $Value
+                                    return
+                                }
                             }
+
+
                             break
                         }
 
