@@ -157,17 +157,17 @@ Describe "Update Existing Script Info" -tag CI {
 		}
     }
 
-    # Purpose: Update a script file info with an invalid PreRelease string
+    # Purpose: Update a script file info with an invalid Prerelease string
     #
     # Action: Update-ScriptFileInfo [path] -Version 3.2.1-alpha+001
     #
-    # Expected Result: Update-ScriptFileInfo should throw InvalidCharactersInPreReleaseString errorid.
+    # Expected Result: Update-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
     #
-    It "UpdateScriptFileWithInvalidPreReleaseString" {
+    It "UpdateScriptFileWithInvalidPrereleaseString" {
         $Version = "3.2.1-alpha+001"
 
-        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Validate-PreReleaseString"
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
 
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
@@ -176,17 +176,74 @@ Describe "Update Existing Script Info" -tag CI {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    # Purpose: Update a script file info with an PreRelease string when the version has insufficient parts.
+    # Purpose: Update a script file info with an invalid Prerelease string
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1-alpha-beta.01
+    #
+    # Expected Result: Update-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "UpdateScriptFileWithInvalidPrereleaseString2" {
+        $Version = "3.2.1-alpha-beta.01"
+
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Update a script file info with an invalid Prerelease string
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1-alpha.1
+    #
+    # Expected Result: Update-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "UpdateScriptFileWithInvalidPrereleaseString3" {
+        $Version = "3.2.1-alpha.1"
+
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Update a script file info with an invalid Prerelease string
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1-error.0.0.0.1
+    #
+    # Expected Result: Update-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "UpdateScriptFileWithInvalidPrereleaseString4" {
+        $Version = "3.2.1-error.0.0.0.1"
+
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Update a script file info with an Prerelease string when the version has insufficient parts.
     #
     # Action: Update-ScriptFileInfo [path] -Version 3.2-alpha+001
     #
-    # Expected Result: Update-ScriptFileInfo should throw InsufficientVersionPartsForPreReleaseString errorid.
+    # Expected Result: Update-ScriptFileInfo should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
     #
-    It "UpdateScriptFileWithPreReleaseStringAndShortVersion" {
+    It "UpdateScriptFileWithPrereleaseStringAndShortVersion" {
         $Version = "3.2-alpha001"
 
-        $expectedErrorMessage = "Version has less than 3 parts and a PreRelease string is specified. Version must have at least 3 parts for a PreRelease string to be used."
-        $expectedFullyQualifiedErrorId = "InsufficientVersionPartsForPreReleaseStringUsage,Validate-PreReleaseString"
+        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ScriptFileInfo"
 
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
@@ -195,14 +252,49 @@ Describe "Update Existing Script Info" -tag CI {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
-    # Purpose: Update a script file info with a valid PreRelease string and a version with sufficient parts.
+    # Purpose: Update a script file info with an Prerelease string when the version has insufficient parts.
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1.0.5-alpha+001
+    #
+    # Expected Result: Update-ScriptFileInfo should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
+    #
+    It "UpdateScriptFileWithPrereleaseStringAndLongVersion" {
+        $Version = "3.2.1.0.5-alpha001"
+
+        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Update a script file info with a valid Prerelease string and a version with sufficient parts.
     #
     # Action: Update-ScriptFileInfo [path] -Version 3.2.1-alpha001
     #
     # Expected Result: Update-ScriptFileInfo should successfully update the version field.
     #
-    It "UpdateScriptFileWithValidPreReleaseAndVersion" {
+    It "UpdateScriptFileWithValidPrereleaseAndVersion" {
         $Version = "3.2.1-alpha001"
+
+        Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
+
+        $newScriptInfo = Test-ScriptFileInfo -Path $script:ScriptFilePath
+
+        $newScriptInfo.Version | Should -Match $Version
+    }
+
+    # Purpose: Update a script file info with a valid Prerelease string and a version with sufficient parts.
+    #
+    # Action: Update-ScriptFileInfo [path] -Version 3.2.1-gamma001
+    #
+    # Expected Result: Update-ScriptFileInfo should successfully update the version field.
+    #
+    It "UpdateScriptFileWithValidPrereleaseAndVersion2" {
+        $Version = "3.2.1-gamma001"
 
         Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
 

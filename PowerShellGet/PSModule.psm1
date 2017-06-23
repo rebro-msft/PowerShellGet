@@ -120,6 +120,7 @@ $script:Proxy = 'Proxy'
 $script:ProxyCredential = 'ProxyCredential'
 $script:Credential = 'Credential'
 $script:VSTSAuthenticatedFeedsDocUrl = 'https://go.microsoft.com/fwlink/?LinkID=698608'
+$script:Prerelease = "Prerelease"
 
 $script:NuGetProviderName = "NuGet"
 $script:NuGetProviderVersion  = [Version]'2.8.5.201'
@@ -4908,12 +4909,11 @@ function Test-ScriptFileInfo
 
         if ($PSScriptInfo.Version -match '-')
         {
-            # Version contains PreRelease string.  Break apart and validate separately.
-            $indexOfFirstHyphen = $PSScriptInfo.Version.IndexOf('-')
-            $versionSubstring = $PSScriptInfo.Version.Substring(0, $indexOfFirstHyphen)
-            $preReleaseSubstring = $PSScriptInfo.Version.Substring($indexOfFirstHyphen+1)
-
-            $preReleaseIsValid = Validate-PreReleaseString -Version $versionSubstring -PreRelease $preReleaseSubstring -InfoObject $PSScriptInfo
+            # Version contains Prerelease string.  Break apart and validate separately.
+            $preReleaseIsValid = Validate-PrereleaseString -Version $($PSScriptInfo.Version -split '-',2 | Select-Object -First 1) `
+                                                           -Prerelease $($PSScriptInfo.Version -split '-',2 | Select-Object -Skip 1) `
+                                                           -InfoObject $PSScriptInfo `
+                                                           -PSCmdlet $PSCmdlet
         }
 
         $PSScriptInfo = Get-OrderedPSScriptInfoObject -PSScriptInfo $PSScriptInfo
@@ -4941,7 +4941,7 @@ function New-ScriptFileInfo
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [String]
+        [string]
         $Version,
 
         [Parameter()]
@@ -4961,7 +4961,7 @@ function New-ScriptFileInfo
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [String]
+        [string]
         $CompanyName,
 
         [Parameter()]
@@ -5197,7 +5197,7 @@ function Update-ScriptFileInfo
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [String]
+        [string]
         $Version,
 
         [Parameter()]
@@ -5217,7 +5217,7 @@ function Update-ScriptFileInfo
 
         [Parameter()] 
         [ValidateNotNullOrEmpty()]
-        [String]
+        [string]
         $CompanyName,
 
         [Parameter()]
@@ -5271,7 +5271,8 @@ function Update-ScriptFileInfo
 
 		[Parameter()]
         [ValidateNotNullOrEmpty()]
-        [string]$PrivateData,
+        [string]
+        $PrivateData,
                 
         [Parameter()]
         [switch]
@@ -5362,7 +5363,7 @@ function Update-ScriptFileInfo
 
             if(-not $Version)
             {
-                $Version = [String]'1.0'
+                $Version = '1.0'
             }
 
             if(-not $Author)
@@ -8594,55 +8595,33 @@ function ValidateAndAdd-PSScriptInfoEntry
         # Validate the property value and also use proper key name as users can specify the property name in any case.
         $script:Version {
                             $KeyName = $script:Version
-
                             [Version]$Version = $null
                             
                             # Special case for prerelease string in version field, must pull out before parsing version
-                            if ($Value -match '-') 
+                            if ( ( $Value -match '-' ) -and 
+                                 ( [System.Version]::TryParse($($Value -split '-',2 | Select-Object -First 1), ([ref]$Version)) ) -and 
+                                 ( Validate-PrereleaseString -Version $($Value -split '-',2 | Select-Object -First 1) `
+                                                                                     -Prerelease $($Value -split '-',2 | Select-Object -Skip 1) `
+                                                                                     -InfoObject $Value `
+                                                                                     -PSCmdlet $CallerPSCmdlet ) )
                             {
-                                [String]$PreRelease = $null
-
-                                $indexOfFirstHyphen = $Value.IndexOf('-')
-                                $versionSubstring = $Value.Substring(0, $indexOfFirstHyphen)
-                                $preReleaseSubstring = $Value.Substring($indexOfFirstHyphen+1)
-
-                                if( [System.Version]::TryParse($versionSubstring, ([ref]$Version)) -and 
-                                    (Validate-PreReleaseString -Version $versionSubstring -PreRelease $preReleaseSubstring -InfoObject $Value) )
-                                {
-                                    $Value = [String]$Version + '-' + $preReleaseSubstring
-                                }
-                                else
-                                {
-                                    $message = $LocalizedData.InvalidVersion -f ($Value)
-                                    ThrowError -ExceptionName "System.ArgumentException" `
-                                                -ExceptionMessage $message `
-                                                -ErrorId "InvalidVersion" `
-                                                -CallerPSCmdlet $CallerPSCmdlet `
-                                                -ErrorCategory InvalidArgument `
-                                                -ExceptionObject $Value
-                                    return
-                                }
+                                $Value = [string]$Version + '-' + $($Value -split '-',2 | Select-Object -Skip 1)
                             }
-                            else 
+                            elseif ([System.Version]::TryParse($Value, ([ref]$Version)))
                             {
-                                if([System.Version]::TryParse($Value, ([ref]$Version)))
-                                {
-                                    $Value = $Version                            
-                                }
-                                else
-                                {
-                                    $message = $LocalizedData.InvalidVersion -f ($Value)
-                                    ThrowError -ExceptionName "System.ArgumentException" `
-                                                -ExceptionMessage $message `
-                                                -ErrorId "InvalidVersion" `
-                                                -CallerPSCmdlet $CallerPSCmdlet `
-                                                -ErrorCategory InvalidArgument `
-                                                -ExceptionObject $Value
-                                    return
-                                }
+                                $Value = $Version      
                             }
-
-
+                            else
+                            {
+                                $message = $LocalizedData.InvalidVersion -f ($Value)
+                                ThrowError -ExceptionName "System.ArgumentException" `
+                                            -ExceptionMessage $message `
+                                            -ErrorId "InvalidVersion" `
+                                            -CallerPSCmdlet $CallerPSCmdlet `
+                                            -ErrorCategory InvalidArgument `
+                                            -ExceptionObject $Value
+                                return
+                            }
                             break
                         }
 
@@ -12988,7 +12967,7 @@ function Update-ModuleManifest
 
         [Parameter()]
         [String]
-        $PreRelease,
+        $Prerelease,
         
         [Parameter()]
         [ValidateNotNullOrEmpty()]
@@ -13496,7 +13475,7 @@ function Update-ModuleManifest
             $Data["ReleaseNotes"] = $($ReleaseNotes -join "`r`n")
         }
         
-        if ($PreRelease)
+        if ($Prerelease)
         {
             if ($ModuleVersion)
             {
@@ -13509,9 +13488,9 @@ function Update-ModuleManifest
                 $version = $moduleInfo.Version
             }
 
-            if (Validate-PreReleaseString -Version $version -PreRelease $PreRelease -InfoObject $moduleInfo)
+            if (Validate-PrereleaseString -Version $version -Prerelease $Prerelease -InfoObject $moduleInfo -PSCmdlet $PSCmdlet)
             {
-                $Data["PreRelease"] = $PreRelease
+                $Data[$script:Prerelease] = $Prerelease
             }
         }
         
@@ -13731,8 +13710,8 @@ function Get-PrivateData
         # ReleaseNotes of this module
         # ReleaseNotes = ''
 
-        # PreRelease string of this module
-        # PreRelease = ''
+        # Prerelease string of this module
+        # Prerelease = ''
 
         # External dependent modules of this module
         # ExternalModuleDependencies = ''
@@ -13751,10 +13730,10 @@ function Get-PrivateData
     $IconUri = $PrivateData["IconUri"] | %{"'$_'"}
     $ReleaseNotesEscape = $PrivateData["ReleaseNotes"] -Replace "'","''"
     $ReleaseNotes = $ReleaseNotesEscape | %{"'$_'"}
-    $PreRelease = $PrivateData["PreRelease"] | %{"'$_'"}
+    $Prerelease = $PrivateData[$script:Prerelease] | %{"'$_'"}
     $ExternalModuleDependencies = $PrivateData["ExternalModuleDependencies"] -join "','" | %{"'$_'"} 
     
-    $DefaultProperties = @("Tags","LicenseUri","ProjectUri","IconUri","ReleaseNotes","PreRelease","ExternalModuleDependencies")
+    $DefaultProperties = @("Tags","LicenseUri","ProjectUri","IconUri","ReleaseNotes",$script:Prerelease,"ExternalModuleDependencies")
 
     $ExtraProperties = @()
     foreach($key in $PrivateData.Keys)
@@ -13808,10 +13787,10 @@ function Get-PrivateData
     {
         $ReleaseNotesLine = "ReleaseNotes = "+$ReleaseNotes
     }
-    $PreReleaseLine = "# PreRelease = ''"
-    if ($PreRelease -ne "''")
+    $PrereleaseLine = "# Prerelease = ''"
+    if ($Prerelease -ne "''")
     {
-        $PreReleaseLine = "PreRelease = " +$PreRelease
+        $PrereleaseLine = "Prerelease = " +$Prerelease
     }
     $ExternalModuleDependenciesLine ="# ExternalModuleDependencies = @()"
     if($ExternalModuleDependencies -ne "''")
@@ -13841,8 +13820,8 @@ function Get-PrivateData
         # ReleaseNotes of this module
         $ReleaseNotesLine
 
-        # PreRelease string of this module
-        $PreReleaseLine
+        # Prerelease string of this module
+        $PrereleaseLine
 
         # External dependent modules of this module
         $ExternalModuleDependenciesLine
@@ -13874,8 +13853,8 @@ function Get-PrivateData
         # ReleaseNotes of this module
         $ReleaseNotesLine
 
-        # PreRelease string of this module
-        $PreReleaseLine
+        # Prerelease string of this module
+        $PrereleaseLine
 
         # External dependent modules of this module
         $ExternalModuleDependenciesLine
@@ -13887,9 +13866,8 @@ function Get-PrivateData
     }
 }
 
-function Validate-PreReleaseString 
+function Validate-PrereleaseString 
 {
-    [CmdletBinding(PositionalBinding=$false)]
     Param 
     (
         [Parameter(Mandatory=$true)]
@@ -13900,40 +13878,45 @@ function Validate-PreReleaseString
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [String]
-        $PreRelease,
+        $Prerelease,
 
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
         [Object]
-        $InfoObject
+        $InfoObject,
+
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.PSCmdlet]
+        $PSCmdlet
     )
 
     # Remove leading hyphen (if present)
-    if ( $PreRelease -and $PreRelease.StartsWith('-') )
+    if ( $Prerelease -and $Prerelease.StartsWith('-') )
     {
-        $PreRelease = $PreRelease.Substring(1)
+        $Prerelease = $Prerelease -split '-',2 | Select-Object -Skip 1
     }
 
     # only these characters are allowed in a prerelease string
     $validCharacters = "^[a-zA-Z0-9]+$"
-    $prereleaseStringValid = $PreRelease -match $validCharacters
+    $prereleaseStringValid = $Prerelease -match $validCharacters
     if (-not $prereleaseStringValid)
     {
         ThrowError -ExceptionName "System.InvalidOperationException" `
-                   -ExceptionMessage $LocalizedData.InvalidCharactersInPreReleaseString `
-                   -ErrorId "InvalidCharactersInPreReleaseString" `
+                   -ExceptionMessage $LocalizedData.InvalidCharactersInPrereleaseString `
+                   -ErrorId "InvalidCharactersInPrereleaseString" `
                    -CallerPSCmdlet $PSCmdlet `
                    -ErrorCategory InvalidOperation `
                    -ExceptionObject $InfoObject
     }
 
-    # Validate that Version contains at least 3 parts
+    # Validate that Version contains at least 3 parts and at most 4 parts
     $versionPartsCount = $Version.Split('.').Count
-    if ( $versionPartsCount -lt 3 )
+    if ( ($versionPartsCount -lt 3) -or ($versionPartsCount -gt 4))
     {
         ThrowError -ExceptionName "System.InvalidOperationException" `
-                   -ExceptionMessage $LocalizedData.InsufficientVersionPartsForPreReleaseStringUsage `
-                   -ErrorId "InsufficientVersionPartsForPreReleaseStringUsage" `
+                   -ExceptionMessage $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage `
+                   -ErrorId "IncorrectVersionPartsCountForPrereleaseStringUsage" `
                    -CallerPSCmdlet $PSCmdlet `
                    -ErrorCategory InvalidOperation `
                    -ExceptionObject $InfoObject
