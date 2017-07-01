@@ -143,6 +143,7 @@ $script:PSGetFormatVersion = "PowerShellGetFormatVersion"
 $script:SupportedPSGetFormatVersionMajors = @("1")
 $script:ModuleReferences = 'Module References'
 $script:AllVersions = "AllVersions"
+$script:AllowPrereleaseVersions = "AllowPrereleaseVersions"
 $script:Filter      = "Filter"
 $script:IncludeValidSet = @('DscResource','Cmdlet','Function','Workflow','RoleCapability')
 $script:DscResource = "PSDscResource"
@@ -1285,17 +1286,17 @@ function Find-Module
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter()]
@@ -1353,7 +1354,11 @@ function Find-Module
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [PSCredential]
-        $Credential
+        $Credential,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -1370,7 +1375,8 @@ function Find-Module
                                                        -MinimumVersion $MinimumVersion `
                                                        -MaximumVersion $MaximumVersion `
                                                        -RequiredVersion $RequiredVersion `
-                                                       -AllVersions:$AllVersions
+                                                       -AllVersions:$AllVersions `
+                                                       -AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {
@@ -1381,6 +1387,8 @@ function Find-Module
 
         $PSBoundParameters["Provider"] = $script:PSModuleProviderName
         $PSBoundParameters[$script:PSArtifactType] = $script:PSArtifactTypeModule
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
                 
         if($PSBoundParameters.ContainsKey("Repository"))
         {
@@ -2933,17 +2941,17 @@ function Find-Script
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter()]
@@ -2991,7 +2999,11 @@ function Find-Script
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [PSCredential]
-        $Credential
+        $Credential,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -3008,7 +3020,8 @@ function Find-Script
                                                        -MinimumVersion $MinimumVersion `
                                                        -MaximumVersion $MaximumVersion `
                                                        -RequiredVersion $RequiredVersion `
-                                                       -AllVersions:$AllVersions
+                                                       -AllVersions:$AllVersions `
+                                                       -AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {
@@ -3019,6 +3032,8 @@ function Find-Script
 
         $PSBoundParameters['Provider'] = $script:PSModuleProviderName
         $PSBoundParameters[$script:PSArtifactType] = $script:PSArtifactTypeScript
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
                 
         if($PSBoundParameters.ContainsKey("Repository"))
         {
@@ -6486,20 +6501,24 @@ function Validate-VersionParameters
         $Name,
 
         [Parameter()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter()]
-        [Version]
+        [string]
         $MaximumVersion,
 
         [Parameter()]
         [Switch]
         $AllVersions,
+
+        [Parameter()]
+        [Switch]
+        $AllowPrerelease,
 
         [Parameter()]
         [Switch]
@@ -6539,6 +6558,14 @@ function Validate-VersionParameters
                     -ErrorId "MinimumVersionIsGreaterThanMaximumVersion" `
                     -CallerPSCmdlet $CallerPSCmdlet `
                     -ErrorCategory InvalidArgument
+    }
+    elseif( (($MinimumVersion -match '-') -or ($MaximumVersion -match '-') -or ($RequiredVersion -match '-')) -and -not $AllowPrerelease)
+    {
+        ThrowError -ExceptionName "System.ArgumentException" `
+                   -ExceptionMessage $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion `
+                   -ErrorId "AllowPrereleaseRequiredToUsePrereleaseStringInVersion" `
+                   -CallerPSCmdlet $CallerPSCmdlet `
+                   -ErrorCategory InvalidArgument
     }
     elseif($AllVersions -or $RequiredVersion -or $MinimumVersion -or $MaximumVersion)
     {
@@ -7212,7 +7239,7 @@ function New-PSGetItemInfo
 
         $PSGetItemInfo = Microsoft.PowerShell.Utility\New-Object PSCustomObject -Property ([ordered]@{
                 Name = $swid.Name
-                Version = [Version]$swid.Version
+                Version = $swid.Version
                 Type = $Type    
                 Description = (Get-First $swid.Metadata["description"])
                 Author = (Get-EntityName -SoftwareIdentity $swid -Role "author")
@@ -8894,6 +8921,7 @@ function Get-DynamicOptions
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name Includes -ExpectedType StringArray -IsRequired $false -PermittedValues $script:IncludeValidSet)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name DscResource -ExpectedType StringArray -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name RoleCapability -ExpectedType StringArray -IsRequired $false)
+                    Write-Output -InputObject (New-DynamicOption -Category $category -Name AllowPrereleaseVersions -ExpectedType Switch -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name Command -ExpectedType StringArray -IsRequired $false)
                 }
 
@@ -9786,6 +9814,11 @@ function Find-Package
     if($options.ContainsKey($script:AllVersions))
     {
         $providerOptions[$script:AllVersions] = $options[$script:AllVersions]
+    }
+
+    if ($options.Contains($script:AllowPrereleaseVersions))
+    {
+        $providerOptions[$script:AllowPrereleaseVersions] = $options[$script:AllowPrereleaseVersions]
     }
 
     if($options.ContainsKey($script:Filter))
