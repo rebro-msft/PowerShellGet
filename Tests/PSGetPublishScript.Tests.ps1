@@ -1134,6 +1134,509 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     }
 }
 
+Describe PublishScriptPreReleaseTests -Tags 'TDD' {
+    
+    BeforeAll {
+        SuiteSetup
+    }
+
+    AfterAll {
+        SuiteCleanup
+    }
+
+    BeforeEach {
+        
+        $null = New-ScriptFileInfo -Path $script:PublishScriptFilePath `
+                               -Version $script:PublishScriptVersion `
+                               -Author Manikyam.Bavandla@microsoft.com `
+                               -Description 'Test script description goes here ' `
+                               -Force
+
+        Add-Content -Path $script:PublishScriptFilePath `
+                    -Value "
+                        Function Test-ScriptFunction { 'Test-ScriptFunction' }
+
+                        Workflow Test-ScriptWorkflow { 'Test-ScriptWorkflow' }
+
+                        Test-ScriptFunction
+                        Test-ScriptWorkflow"
+    }
+
+    AfterEach {
+        RemoveItem "$script:PSGalleryRepoPath\*"        
+        RemoveItem $script:PublishScriptFilePath
+        RemoveItem "$script:TempScriptsPath\*.ps1"
+        RemoveItem "$script:TempScriptsLiteralPath\*"
+    }
+
+    
+    It "PublishScriptSameVersionHigherPreRelease" {
+        
+        # Publish first version
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+        # Publish second version
+        $version = "1.0.0-beta002"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    It "PublishScriptSameVersionLowerPreReleaseWithForce" {
+        
+        # Publish first version
+        $version = "1.0.0-beta002"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+
+        # Publish second version
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey -Force
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+    
+    # Purpose: Publish a script with a lower Prerelease string, without force.
+    #
+    # Action: Publish-Script [path]  
+    #
+    # Expected Result: Publish-Script should throw ScriptVersionShouldBeGreaterThanGalleryVersion errorid.
+    #
+    It "PublishScriptSameVersionLowerPreReleaseWithoutForce" {
+        
+        # Publish first version
+        $version = "1.0.0-beta002"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+
+        # Publish second version (cannot use Update-ScriptFileInfo because is invalid)
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should -Throw -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion,Publish-Script"
+    }
+    
+    It "PublishScriptSameVersionSamePreRelease" {
+        
+        # Publish first version
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+        # Publish same version again
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should -Throw -ErrorId "ScriptVersionIsAlreadyAvailableInTheGallery,Publish-Script"
+    }
+
+    It "PublishScriptSameVersionNoPreRelease" {
+        
+        # Publish first version
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+
+        # Publish the stable version
+        $version = "1.0.0"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+
+    It "PublishScriptWithForceNewPreReleaseAfterStableVersion" {
+        
+        # Publish stable version
+        $version = "1.0.0"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+
+        # Publish prerelease version
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey -Force
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+    
+    It "PublishScriptWithoutForceNewPreReleaseAfterStableVersion" {
+        
+        # Publish stable version
+        $version = "1.0.0"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should Not Throw
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion $version -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should Be $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+
+        # Publish prerelease version
+        $version = "1.0.0-alpha001"
+        Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
+        $scriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
+        }
+        $scriptBlock | Should -Throw -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion,Publish-Script"
+    }
+
+    # Purpose: Publish a script with an invalid Prerelease string
+    #
+    # Action: Publish-Script [path]
+    #
+    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "PublishScriptWithInvalidPrereleaseString" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1-alpha+001
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Publish a script with an invalid Prerelease string
+    #
+    # Action: Publish-Script [path] 
+    #
+    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "PublishScriptWithInvalidPrereleaseString2" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1-alpha-beta.01
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath 
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Publish a script with an invalid Prerelease string
+    #
+    # Action: Publish-Script [path]
+    #
+    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "PublishScriptWithInvalidPrereleaseString3" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1-alpha.1
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+        
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Publish a script with an invalid Prerelease string
+    #
+    # Action: Publish-Script [path]
+    #
+    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
+    #
+    It "PublishScriptWithInvalidPrereleaseString4" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1-error.0.0.0.1
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+
+        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Publish a script with an Prerelease string when the version has insufficient parts.
+    #
+    # Action: Publish-Script [path] 
+    #
+    # Expected Result: Publish-Script should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
+    #
+    It "PublishScriptWithPrereleaseStringAndShortVersion" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2-alpha001
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+        
+        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+    
+    # Purpose: Publish a script with an Prerelease string when the version has too many parts.
+    #
+    # Action: Publish-Script [path] 
+    #
+    # Expected Result: Publish-Script should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
+    #
+    It "PublishScriptWithPrereleaseStringAndLongVersion" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1.0.5-alpha001
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+        
+        $expectedErrorMessage = "Cannot convert value '3.2.1.0.5-alpha001' to type 'System.Version'."
+        $expectedFullyQualifiedErrorId = "InvalidVersion,Test-ScriptFileInfo"
+
+        $ScriptBlock = {
+            Publish-Script -Path $script:PublishScriptFilePath
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Purpose: Publish a script with a valid Prerelease string and a version with sufficient parts.
+    #
+    # Action: Publish-Script [path] 
+    #
+    # Expected Result: Publish-Script should successfully validate the version field.
+    #
+    It "PublishScriptWithValidPrereleaseAndVersion" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1-alpha001
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+        Publish-Script -Path $script:PublishScriptFilePath
+
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion "3.2.1-alpha001" -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should -Match "3.2.1-alpha001"
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    # Purpose: Publish a script with a valid Prerelease string and a version with sufficient parts.
+    #
+    # Action: Publish-Script [path] 
+    #
+    # Expected Result: Publish-Script should successfully validate the version field.
+    #
+    It "PublishScriptWithValidPrereleaseAndVersion2" {
+        Set-Content -Path $script:PublishScriptFilePath -Value @"
+<#PSScriptInfo
+    .DESCRIPTION 
+    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
+    .VERSION 
+    3.2.1.0-gamma001
+    .GUID 
+    35eb535b-7e54-4412-a58b-8a0c588c0b30
+    .AUTHOR 
+    Manikyam Bavandla @ManikB
+    .TAGS 
+    ManualScriptInfo
+    .RELEASENOTES
+    Release notes for this script file.
+#>
+"@
+        
+        Publish-Script -Path $script:PublishScriptFilePath
+
+        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion "3.2.1.0-gamma001" -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishScriptName
+        $psgetItemInfo.Version | Should -Match "3.2.1.0-gamma001"
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+}
+
 Describe PowerShell.PSGet.PublishScriptTests.P1 -Tags 'P1','OuterLoop' {
     BeforeAll {
         SuiteSetup

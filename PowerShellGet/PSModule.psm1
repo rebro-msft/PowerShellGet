@@ -790,7 +790,7 @@ function Publish-Module
 
         [Parameter(ParameterSetName="ModuleNameParameterSet")]
         [ValidateNotNullOrEmpty()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter()]
@@ -1176,10 +1176,20 @@ function Publish-Module
                            -ExceptionObject $moduleName
             }
 
+            # Validate Prerelease string (logic not yet in Test-ModuleManifest)
+            if ($moduleInfo.PrivateData -and $moduleInfo.PrivateData["PSData"] -and $moduleInfo.PrivateData.PSData["Prerelease"])
+            {
+                $preReleaseIsValid = Validate-PrereleaseString -Version $moduleInfo.Version `
+                                                               -Prerelease $moduleInfo.PrivateData.PSData.Prerelease `
+                                                               -InfoObject $moduleInfo `
+                                                               -PSCmdlet $PSCmdlet
+            }
+
             $FindParameters = @{
                 Name = $moduleName
                 Repository = $Repository
                 Tag = 'PSScript'
+                AllowPrerelease = $true
                 Verbose = $VerbosePreference
                 ErrorAction = 'SilentlyContinue'
                 WarningAction = 'SilentlyContinue'
@@ -1214,14 +1224,70 @@ function Publish-Module
 
             if($currentPSGetItemInfo)
             {
-                if($currentPSGetItemInfo.Version -eq $moduleInfo.Version)
+                $currentPSGetItemVersion = $currentPSGetItemInfo.Version -split '-',2 | Select-Object -First 1
+
+                if($currentPSGetItemVersion -eq $moduleInfo.Version)
                 {
-                    $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
-                    ThrowError -ExceptionName 'System.InvalidOperationException' `
-                               -ExceptionMessage $message `
-                               -ErrorId 'ModuleVersionIsAlreadyAvailableInTheGallery' `
-                               -CallerPSCmdlet $PSCmdlet `
-                               -ErrorCategory InvalidOperation
+                    # Compare Prerelease strings
+                    $currentPSGetItemPrereleaseString = $currentPSGetItemInfo.Version -split '-',2 | Select-Object -Skip 1
+
+                    $moduleToPublishPrereleaseString = $null
+                    if ($moduleInfo.PrivateData["PSData"])
+                    {
+                        $moduleToPublishPrereleaseString = $moduleInfo.PrivateData.PSData["Prerelease"]
+                        if ($moduleToPublishPrereleaseString -and $moduleToPublishPrereleaseString.StartsWith('-'))
+                        {
+                            $moduleToPublishPrereleaseString = $moduleToPublishPrereleaseString.Substring(1)
+                        }
+                    }
+
+                    if (-not $currentPSGetItemPrereleaseString -and -not $moduleToPublishPrereleaseString)
+                    {
+                        $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                        ThrowError -ExceptionName 'System.InvalidOperationException' `
+                                   -ExceptionMessage $message `
+                                   -ErrorId 'ModuleVersionIsAlreadyAvailableInTheGallery' `
+                                   -CallerPSCmdlet $PSCmdlet `
+                                   -ErrorCategory InvalidOperation
+                    }
+                    elseif (-not $Force -and (-not $currentPSGetItemPrereleaseString -and $moduleToPublishPrereleaseString))
+                    {
+                        # User is trying to publish a new Prerelease version AFTER publishing the stable version.
+                        $message = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                        ThrowError -ExceptionName "System.InvalidOperationException" `
+                                   -ExceptionMessage $message `
+                                   -ErrorId "ModuleVersionShouldBeGreaterThanGalleryVersion" `
+                                   -CallerPSCmdlet $PSCmdlet `
+                                   -ErrorCategory InvalidOperation
+                    }
+
+                    # elseif ($currentPSGetItemPrereleaseString -and -not $moduleToPublishPrereleaseString) --> allow publish
+                    # User is attempting to publish a stable version after publishing a Prerelease version (allowed).  
+
+                    elseif ($currentPSGetItemPrereleaseString -and $moduleToPublishPrereleaseString)
+                    {
+                        if ($currentPSGetItemPrereleaseString -eq $moduleToPublishPrereleaseString)
+                        {
+                            $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                            ThrowError -ExceptionName 'System.InvalidOperationException' `
+                                       -ExceptionMessage $message `
+                                       -ErrorId 'ModuleVersionIsAlreadyAvailableInTheGallery' `
+                                       -CallerPSCmdlet $PSCmdlet `
+                                       -ErrorCategory InvalidOperation
+                        }
+
+                        elseif (-not $Force -and ($currentPSGetItemPrereleaseString -gt $moduleToPublishPrereleaseString))
+                        {
+                            $message = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                            ThrowError -ExceptionName "System.InvalidOperationException" `
+                                       -ExceptionMessage $message `
+                                       -ErrorId "ModuleVersionShouldBeGreaterThanGalleryVersion" `
+                                       -CallerPSCmdlet $PSCmdlet `
+                                       -ErrorCategory InvalidOperation
+                        }
+
+                        # elseif ($currentPSGetItemPrereleaseString -lt $moduleToPublishPrereleaseString) --> allow publish
+                    }
                 }
                 elseif(-not $Force -and ($currentPSGetItemInfo.Version -gt $moduleInfo.Version))
                 {
@@ -1232,6 +1298,8 @@ function Publish-Module
                                -CallerPSCmdlet $PSCmdlet `
                                -ErrorCategory InvalidOperation
                 }
+
+                # else ($currentPSGetItemInfo.Version -lt $moduleInfo.Version) --> allow publish
             }
 
             $shouldProcessMessage = $LocalizedData.PublishModulewhatIfMessage -f ($moduleInfo.Version, $moduleInfo.Name)
@@ -2811,7 +2879,7 @@ function Publish-Script
             # Test-ScriptFileInfo throws the actual error
             return
         }
-
+        
         $scriptName = $PSScriptInfo.Name
 
         # Copy the source script file to temp location to publish
@@ -2834,6 +2902,7 @@ function Publish-Script
                 Name = $scriptName
                 Repository = $Repository
                 Tag = 'PSModule'
+                AllowPrerelease = $true
                 Verbose = $VerbosePreference
                 ErrorAction = 'SilentlyContinue'
                 WarningAction = 'SilentlyContinue'
@@ -2870,8 +2939,12 @@ function Publish-Script
 
             if($currentPSGetItemInfo)
             {
-                if($currentPSGetItemInfo.Version -eq $PSScriptInfo.Version)
+                $galleryScriptVersion = $currentPSGetItemInfo.Version
+                $toPublishScriptVersion = $PSScriptInfo.Version
+
+                if($galleryScriptVersion -eq $toPublishScriptVersion)
                 {
+                    
                     $message = $LocalizedData.ScriptVersionIsAlreadyAvailableInTheGallery -f ($scriptName,
                                                                                               $PSScriptInfo.Version,
                                                                                               $currentPSGetItemInfo.Version,
@@ -2882,7 +2955,20 @@ function Publish-Script
                                -CallerPSCmdlet $PSCmdlet `
                                -ErrorCategory InvalidOperation
                 }
-                elseif(-not $Force -and ($currentPSGetItemInfo.Version -gt $PSScriptInfo.Version))
+                <# NOTE:  In string comparison, '1.0.0' < '1.0.0-alpha'.  But in SemVer, it is the opposite.
+                          Adding a space to the front of prerelease versions reverses the order, making string comparison == SemVer.
+                          It is a clever workaround.
+                #>
+                if ($galleryScriptVersion -match '-')
+                {
+                    $galleryScriptVersion = " $galleryScriptVersion"
+                }
+                if ($toPublishScriptVersion -match '-')
+                {
+                    $toPublishScriptVersion = " $toPublishScriptVersion"
+                }
+
+                if(-not $Force -and ($galleryScriptVersion -gt $toPublishScriptVersion))
                 {
                     $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
                                                                                                  $PSScriptInfo.Version,
@@ -2923,7 +3009,6 @@ function Publish-Script
         }
     }
 }
-
 function Find-Script
 {
     <#
@@ -7223,7 +7308,24 @@ function New-PSGetItemInfo
                                                     -Name $key `
                                                     -Value (Get-First $swid.Metadata[$key])
         }
-        
+
+        if (-not $(Get-Member -InputObject $additionalMetadata -Name "IsPrerelease" -MemberType Properties) )
+        {
+            if ($swid.Version -match '-')
+            {
+                Microsoft.PowerShell.Utility\Add-Member -InputObject $additionalMetadata `
+                                                        -MemberType NoteProperty `
+                                                        -Name 'IsPrerelease' `
+                                                        -Value $true
+            }
+            else {
+                Microsoft.PowerShell.Utility\Add-Member -InputObject $additionalMetadata `
+                                                        -MemberType NoteProperty `
+                                                        -Name 'IsPrerelease' `
+                                                        -Value $false
+            }
+        }
+
         if(Get-Member -InputObject $additionalMetadata -Name 'ItemType')
         {
             $Type = $additionalMetadata.'ItemType'
@@ -8205,7 +8307,7 @@ function Publish-PSArtifactUtility
     $PSArtifactType = $script:PSArtifactTypeModule
     $Name = $null
     $Description = $null
-    $Version = $null
+    $Version = ""
     $Author = $null
     $CompanyName = $null
     $Copyright = $null
@@ -8218,6 +8320,20 @@ function Publish-PSArtifactUtility
         $Author = $PSModuleInfo.Author
         $CompanyName = $PSModuleInfo.CompanyName
         $Copyright = $PSModuleInfo.Copyright
+
+        if ($PSModuleInfo.PrivateData -and 
+            $PSModuleInfo.PrivateData["PSData"] -and 
+            $PSModuleInfo.PrivateData.PSData["Prerelease"])
+        {
+            if ($PSModuleInfo.PrivateData.PSData.Prerelease.StartsWith("-"))
+            {
+                $Version = [string]$Version + $PSModuleInfo.PrivateData.PSData.Prerelease
+            }
+            else
+            {
+                $Version = [string]$Version + "-" + $PSModuleInfo.PrivateData.PSData.Prerelease
+            }
+        }
 
         if($PSModuleInfo.PrivateData -and 
            ($PSModuleInfo.PrivateData.GetType().ToString() -eq "System.Collections.Hashtable") -and 
@@ -8482,7 +8598,7 @@ function Publish-PSArtifactUtility
 </package>
 "@
 
-    $NupkgPath = "$NugetPackageRoot\$Name.$($Version.ToString()).nupkg"
+    $NupkgPath = "$NugetPackageRoot\$Name.$Version.nupkg"
     $NuspecPath = "$NugetPackageRoot\$Name.nuspec"
     $tempErrorFile = $null
     $tempOutputFile = $null
@@ -8636,7 +8752,7 @@ function ValidateAndAdd-PSScriptInfoEntry
                             }
                             elseif ([System.Version]::TryParse($Value, ([ref]$Version)))
                             {
-                                $Value = $Version      
+                                $Value = [string]$Version      
                             }
                             else
                             {
