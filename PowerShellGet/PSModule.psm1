@@ -790,7 +790,7 @@ function Publish-Module
 
         [Parameter(ParameterSetName="ModuleNameParameterSet")]
         [ValidateNotNullOrEmpty()]
-        [string]
+        [Version]
         $RequiredVersion,
 
         [Parameter()]
@@ -1224,12 +1224,13 @@ function Publish-Module
 
             if($currentPSGetItemInfo)
             {
-                $currentPSGetItemVersion = $currentPSGetItemInfo.Version -split '-',2 | Select-Object -First 1
+                $splitVersionPrerelease = $currentPSGetItemInfo.Version -split '-',2
+                $currentPSGetItemVersion = $splitVersionPrerelease | Select-Object -First 1
 
                 if($currentPSGetItemVersion -eq $moduleInfo.Version)
                 {
                     # Compare Prerelease strings
-                    $currentPSGetItemPrereleaseString = $currentPSGetItemInfo.Version -split '-',2 | Select-Object -Skip 1
+                    $currentPSGetItemPrereleaseString = $splitVersionPrerelease | Select-Object -Skip 1
 
                     $moduleToPublishPrereleaseString = $null
                     if ($moduleInfo.PrivateData["PSData"])
@@ -5010,8 +5011,9 @@ function Test-ScriptFileInfo
         if ($PSScriptInfo.Version -match '-')
         {
             # Version contains Prerelease string.  Break apart and validate separately.
-            $preReleaseIsValid = Validate-PrereleaseString -Version $($PSScriptInfo.Version -split '-',2 | Select-Object -First 1) `
-                                                           -Prerelease $($PSScriptInfo.Version -split '-',2 | Select-Object -Skip 1) `
+            $splitVersionPrerelease = $PSScriptInfo.Version -split '-',2
+            $preReleaseIsValid = Validate-PrereleaseString -Version $($splitVersionPrerelease | Select-Object -First 1) `
+                                                           -Prerelease $($splitVersionPrerelease | Select-Object -Skip 1) `
                                                            -InfoObject $PSScriptInfo `
                                                            -PSCmdlet $PSCmdlet
         }
@@ -6573,6 +6575,63 @@ function Ping-Endpoint
     return $results
 }
 
+function Validate-VersionString 
+{
+    Param(
+        [parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.Management.Automation.PSCmdlet]
+        $CallerPSCmdlet,
+
+        [Parameter()]
+        [String[]]
+        $Version
+    )
+
+    [Version]$parsedVersion = $null
+
+    $versionPart = $Version -split '-',2 | Select-Object -First 1
+    $prereleasePart = $Version -split '-',2 | Select-Object -Skip 1
+
+    # try parsing version string
+    if (-not ( [System.Version]::TryParse($versionPart, ([ref]$parsedVersion)) ))
+    {
+        $message = $LocalizedData.InvalidVersion -f ($Version)
+        ThrowError -ExceptionName "System.ArgumentException" `
+                   -ExceptionMessage $message `
+                   -ErrorId "InvalidVersion" `
+                   -CallerPSCmdlet $CallerPSCmdlet `
+                   -ErrorCategory InvalidArgument `
+                   -ExceptionObject $Version
+        return
+    }
+
+    # validate prerelease string
+    if ( ($Version -match '-') -and 
+          $prereleasePart -and 
+         (Validate-PrereleaseString -Version $versionPart `
+                                    -Prerelease $prereleasePart `
+                                    -InfoObject $Version `
+                                    -PSCmdlet $CallerPSCmdlet ) )
+    {
+        # Validate-PrereleaseString will throw an error, simply return
+        return
+    }
+
+    # edge case: $Version ends with hyphen
+    if ($Version -match '-' -and -not $prereleasePart)
+    {
+        $message = $LocalizedData.InvalidVersion -f ($Version)
+        ThrowError -ExceptionName "System.ArgumentException" `
+                   -ExceptionMessage $message `
+                   -ErrorId "InvalidVersion" `
+                   -CallerPSCmdlet $CallerPSCmdlet `
+                   -ErrorCategory InvalidArgument `
+                   -ExceptionObject $Version
+        return
+    }
+}
+
 function Validate-VersionParameters
 {
     Param(
@@ -6610,6 +6669,31 @@ function Validate-VersionParameters
         $TestWildcardsInName
     )
 
+    if( (($MinimumVersion -match '-') -or ($MaximumVersion -match '-') -or ($RequiredVersion -match '-')) -and -not $AllowPrerelease)
+    {
+        ThrowError -ExceptionName "System.ArgumentException" `
+                   -ExceptionMessage $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion `
+                   -ErrorId "AllowPrereleaseRequiredToUsePrereleaseStringInVersion" `
+                   -CallerPSCmdlet $CallerPSCmdlet `
+                   -ErrorCategory InvalidArgument
+    }
+    
+    if ($MinimumVersion)
+    {
+        Validate-VersionString -Version $MinimumVersion
+        # Validate-VersionString will throw error if issue is found
+    }
+    if ($MaximumVersion)
+    {
+        Validate-VersionString -Version $MaximumVersion
+        # Validate-VersionString will throw error if issue is found
+    }
+    if ($RequiredVersion)
+    {
+        Validate-VersionString -Version $RequiredVersion
+        # Validate-VersionString will throw error if issue is found
+    }
+
     if($TestWildcardsInName -and $Name -and (Test-WildcardPattern -Name "$Name"))
     {
         ThrowError -ExceptionName "System.ArgumentException" `
@@ -6643,14 +6727,6 @@ function Validate-VersionParameters
                     -ErrorId "MinimumVersionIsGreaterThanMaximumVersion" `
                     -CallerPSCmdlet $CallerPSCmdlet `
                     -ErrorCategory InvalidArgument
-    }
-    elseif( (($MinimumVersion -match '-') -or ($MaximumVersion -match '-') -or ($RequiredVersion -match '-')) -and -not $AllowPrerelease)
-    {
-        ThrowError -ExceptionName "System.ArgumentException" `
-                   -ExceptionMessage $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion `
-                   -ErrorId "AllowPrereleaseRequiredToUsePrereleaseStringInVersion" `
-                   -CallerPSCmdlet $CallerPSCmdlet `
-                   -ErrorCategory InvalidArgument
     }
     elseif($AllVersions -or $RequiredVersion -or $MinimumVersion -or $MaximumVersion)
     {
@@ -13115,7 +13191,7 @@ function Update-ModuleManifest
         $ReleaseNotes,
 
         [Parameter()]
-        [String]
+        [string]
         $Prerelease,
         
         [Parameter()]
@@ -14021,12 +14097,12 @@ function Validate-PrereleaseString
     (
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [String]
+        [string]
         $Version,
 
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [String]
+        [string]
         $Prerelease,
 
         [Parameter(Mandatory=$true)]

@@ -371,7 +371,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -406,7 +406,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -441,7 +441,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -476,7 +476,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -511,7 +511,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -546,7 +546,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -581,7 +581,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -610,7 +610,7 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1383,7 +1383,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1417,7 +1417,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1451,7 +1451,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1485,7 +1485,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1519,7 +1519,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1553,7 +1553,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1587,7 +1587,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
@@ -1619,7 +1619,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
-    Manikyam Bavandla @ManikB
+    Rebecca Roenitz @RebRo
     .TAGS 
     ManualScriptInfo
     .RELEASENOTES
