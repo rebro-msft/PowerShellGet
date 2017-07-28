@@ -64,13 +64,35 @@ Describe FindScriptTests -Tags 'TDD' {
         SuiteCleanup
     }
 
-    
-    # Purpose: Validate Find-Script (on a script with stable and prerelease versions)
-    #
-    # Action: Find-Script
-    #
-    # Expected Result: Find-Script should return the latest stable version, not the latest prerelease version of the script
-    #
+    # Downlevel Tests
+    #-----------------
+    It FindScriptByNameWithAllowPrereleaseDownlevel {
+        $script = {
+            Find-Script -Name $script:PrereleaseTestScript -AllowPrerelease -Repository Local
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+    It FindSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel {
+        $script = {
+            Find-Script -Name $script:PrereleaseTestScript -RequiredVersion "2.0.0-beta500" -Repository Local
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+    It FindSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel {
+        $script = {
+            Find-Script -Name $script:PrereleaseTestScript -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+
+    # Find-Script Tests
+    #-------------------
     It FindScriptReturnsLatestStableVersion {
         $psgetScriptInfo = Find-Script -Name $script:PrereleaseTestScript -Repository Local
 
@@ -80,12 +102,6 @@ Describe FindScriptTests -Tags 'TDD' {
         $psgetScriptInfo.Version | Should Not Match '-'
     }
 
-    # Purpose: Validate Find-Script -AllowPrerelease
-    #
-    # Action: Find-Script -AllowPrerelease
-    #
-    # Expected Result: Find-Script -AllowPrerelease should return the prerelease version of the script
-    #
     It FindScriptAllowPrereleaseReturnsLatestPrereleaseVersion {
         $psgetScriptInfo = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllowPrerelease
 
@@ -95,12 +111,6 @@ Describe FindScriptTests -Tags 'TDD' {
         $psgetScriptInfo.Version | Should Match '-'
     }
     
-    # Purpose: Validate Find-Script -AllowPrerelease -AllVersions
-    #
-    # Action: Find-Script -AllowPrerelease -AllVersions
-    #
-    # Expected Result: Find-Script -AllowPrerelease -AllVersions should return all the versions of the script, including the prerelease versions.
-    #
     It FindScriptAllowPrereleaseAllVersions {
         $results = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllowPrerelease -AllVersions
 
@@ -109,12 +119,6 @@ Describe FindScriptTests -Tags 'TDD' {
         $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
     
-    # Purpose: Validate Find-Script -AllVersions
-    #
-    # Action: Find-Script -AllVersions
-    #
-    # Expected Result: Find-Script -AllVersions should return only stable versions of the script.
-    #
     # >>>>>>> Failing (as expected, not yet implemented) <<<<<
     It FindScriptAllVersionsShouldReturnOnlyStableVersions {
         $results = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllVersions
@@ -124,12 +128,6 @@ Describe FindScriptTests -Tags 'TDD' {
         $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
 
-    # Purpose: Validate Find-Script -RequiredVersion [prerelease version] -AllowPrerelease
-    #
-    # Action: Find-Script -RequiredVersion [prerelease version] -AllowPrerelease
-    #
-    # Expected Result: Find-Script should return specific prerelease version of the script.
-    #
     It FindScriptSpecificPrereleaseVersionWithAllowPrerelease {
         $version = "3.0.0-beta2"
         $psgetScriptInfo = Find-Script -Name $script:PrereleaseTestScript -RequiredVersion $version -Repository Local -AllowPrerelease
@@ -140,19 +138,13 @@ Describe FindScriptTests -Tags 'TDD' {
         $psgetScriptInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # Purpose: Validate Find-Script -RequiredVersion [prerelease version]
-    #
-    # Action: Find-Script -RequiredVersion [prerelease version]
-    #
-    # Expected Result: Find-Script should throw error saying use -AllowPrerelease.
-    #
     It FindScriptSpecificPrereleaseVersionWithoutAllowPrerelease {
         $scriptBlock = {
             Find-Script -Name $script:PrereleaseTestScript -RequiredVersion "3.0.0-beta2" -Repository Local
         }
-
+        $expectedErrorMessage = $script:LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
         $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Script"
-        $scriptBlock | Should -Throw -ErrorId $expectedFullyQualifiedErrorId
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     <#

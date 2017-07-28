@@ -25,6 +25,9 @@ function SuiteSetup {
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:DscTestModule = "DscTestModule"
     $script:PrereleaseTestModule = "TestPackage"
+    $script:CommandInPrereleaseTestModule = "Test-PSGetTestCmdlet"
+    $script:DscResourceInPrereleaseTestModule = "DscTestResource"
+    $script:RoleCapabilityInPrereleaseTestModule = "Lev1Maintenance"
 
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
@@ -66,13 +69,9 @@ Describe FindModuleTests -Tags "TDD" {
         SuiteCleanup
     }
 
-    
-    # Purpose: Validate Find-Module (on a module with stable and prerelease versions)
-    #
-    # Action: Find-Module
-    #
-    # Expected Result: Find-Module should return the latest stable version, not the latest prerelease version of the module
-    #
+
+    # Find-Module Tests
+    #-------------------
     It FindModuleReturnsLatestStableVersion {
         $psgetModuleInfo = Find-Module -Name $script:PrereleaseTestModule -Repository Local
 
@@ -82,12 +81,6 @@ Describe FindModuleTests -Tags "TDD" {
         $psgetModuleInfo.Version | Should Not Match '-'
     }
 
-    # Purpose: Validate Find-Module -AllowPrerelease
-    #
-    # Action: Find-Module -AllowPrerelease
-    #
-    # Expected Result: Find-Module -AllowPrerelease should return the prerelease version of the module
-    #
     It FindModuleAllowPrereleaseReturnsLatestPrereleaseVersion {
         $psgetModuleInfo = Find-Module -Name $script:PrereleaseTestModule -Repository Local -AllowPrerelease
 
@@ -97,12 +90,6 @@ Describe FindModuleTests -Tags "TDD" {
         $psgetModuleInfo.Version | Should Match '-'
     }
     
-    # Purpose: Validate Find-Module -AllowPrerelease -AllVersions
-    #
-    # Action: Find-Module -AllowPrerelease -AllVersions
-    #
-    # Expected Result: Find-Module -AllowPrerelease -AllVersions should return all the versions of the module, including the prerelease versions.
-    #
     It FindModuleAllowPrereleaseAllVersions {
         $results = Find-Module -Name $script:PrereleaseTestModule -Repository Local -AllowPrerelease -AllVersions
 
@@ -111,12 +98,6 @@ Describe FindModuleTests -Tags "TDD" {
         $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
     
-    # Purpose: Validate Find-Module -AllVersions
-    #
-    # Action: Find-Module -AllVersions
-    #
-    # Expected Result: Find-Module -AllVersions should return only stable versions of the module.
-    #
     It FindModuleAllVersionsShouldReturnOnlyStableVersions {
         $results = Find-Module -Name $script:PrereleaseTestModule -Repository Local -AllVersions
 
@@ -125,12 +106,6 @@ Describe FindModuleTests -Tags "TDD" {
         $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
 
-    # Purpose: Validate Find-Module -RequiredVersion [prerelease version] -AllowPrerelease
-    #
-    # Action: Find-Module -RequiredVersion [prerelease version] -AllowPrerelease
-    #
-    # Expected Result: Find-Module should return the specific prerelease version of the module.
-    #
     It FindModuleSpecificPrereleaseVersionWithAllowPrerelease {
         $version = "2.0.0-beta500"
         $psgetModuleInfo = Find-Module -Name $script:PrereleaseTestModule -RequiredVersion $version -Repository Local -AllowPrerelease
@@ -141,12 +116,6 @@ Describe FindModuleTests -Tags "TDD" {
         $psgetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # Purpose: Validate Find-Module -RequiredVersion [prerelease version]
-    #
-    # Action: Find-Module -RequiredVersion [prerelease version]
-    #
-    # Expected Result: Find-Module should throw error saying use -AllowPrerelease.
-    #
     It FindModuleSpecificPrereleaseVersionWithoutAllowPrerelease {
         $version = "2.0.0-beta500"
 
@@ -154,17 +123,12 @@ Describe FindModuleTests -Tags "TDD" {
             Find-Module -Name $script:PrereleaseTestModule -RequiredVersion $version -Repository Local
         }
 
+        $expectedErrorMessage = $script:LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
         $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Module"
-        $scriptBlock | Should -Throw -ErrorId $expectedFullyQualifiedErrorId
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     <#
-    # Purpose: Validate Find-Module -AllowPrerelease -IncludeDependencies
-    #
-    # Action: Find-Module -AllowPrerelease -IncludeDependencies
-    #
-    # Expected Result: Find-Module -AllowPrerelease -IncludeDependencies should return the prerelease versions of the module and its dependencies.
-    #
     It FindModuleAllowPrereleaseIncludeDependencies {
 
         # try to get only one prerelease version
@@ -182,6 +146,225 @@ Describe FindModuleTests -Tags "TDD" {
         $resultsDependencies | Where-Object { ($_.Name -ne $script:PrereleaseTestModule) -and ($_.AdditionalMetadata.IsPrerelease -eq $true) } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
     #>
+
+    # Find-DscResources Tests
+    #-------------------------
+    It FindDscResourceReturnsLatestStableVersion {
+        $psgetCommandInfo = Find-DscResource -Name $script:DscResourceInPrereleaseTestModule -Repository Local
+
+        # check that IsPrerelease = false, and Prerelease string is null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Not Match '-'
+    }
+
+    It FindDscResourceAllowPrereleaseReturnsLatestPrereleaseVersion {
+        $psgetCommandInfo = Find-DscResource -Name $script:DscResourceInPrereleaseTestModule -Repository Local -AllowPrerelease -ModuleName $script:DscTestModule
+
+        # check that IsPrerelease = true, and Prerelease string is not null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match '-'
+    }
+    
+    It FindDscResourceAllowPrereleaseAllVersions {
+        $results = Find-DscResource -Name $script:DscResourceInPrereleaseTestModule -Repository Local -AllowPrerelease -AllVersions -ModuleName $script:DscTestModule
+
+        $results.Count | Should BeGreaterThan 1
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.PSGetModuleInfo.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.PSGetModuleInfo.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+    }
+     
+    It FindDscResourceAllVersionsShouldReturnOnlyStableVersions {
+        $results = Find-DscResource -Name $script:DscResourceInPrereleaseTestModule -Repository Local -AllVersions -ModuleName $script:DscTestModule
+
+        $results.Count | Should BeGreaterThan 1
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.PSGetModuleInfo.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should Not BeGreaterThan 0
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.PSGetModuleInfo.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+    }
+
+    It FindDscResourceSpecificPrereleaseVersionWithAllowPrerelease {
+        $version = "2.0.0-beta200"
+        $psgetCommandInfo = Find-DscResource -Name $script:DscResourceInPrereleaseTestModule -RequiredVersion $version -Repository Local -AllowPrerelease -ModuleName $script:DscTestModule
+
+        # check that IsPrerelease = true, and Prerelease string is not null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $version
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    It FindDscResourceSpecificPrereleaseVersionWithoutAllowPrerelease {
+        $version = "2.0.0-beta200"
+
+        $scriptBlock = {
+            Find-DscResource -Name $script:DscResourceInPrereleaseTestModule -RequiredVersion $version -Repository Local -ModuleName $script:DscTestModule
+        }
+
+        $expectedErrorMessage = $script:LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
+        $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    
+    # Find-Command Tests
+    #--------------------
+    It FindCommandReturnsLatestStableVersion {
+        $psgetCommandInfo = Find-Command -Name $script:CommandInPrereleaseTestModule -Repository Local
+
+        # check that IsPrerelease = false, and Prerelease string is null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Not Match '-'
+    }
+
+    It FindCommandAllowPrereleaseReturnsLatestPrereleaseVersion {
+        $psgetCommandInfo = Find-Command -Name $script:CommandInPrereleaseTestModule -Repository Local -AllowPrerelease -ModuleName $script:DscTestModule
+
+        # check that IsPrerelease = true, and Prerelease string is not null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match '-'
+    }
+
+    It FindCommandAllowPrereleaseAllVersions {
+        $results = Find-Command -Name $script:CommandInPrereleaseTestModule -Repository Local -AllowPrerelease -AllVersions -ModuleName $script:DscTestModule
+
+        $results.Count | Should BeGreaterThan 1
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.PSGetModuleInfo.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.PSGetModuleInfo.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+    }
+
+    It FindCommandAllVersionsShouldReturnOnlyStableVersions {
+        $results = Find-Command -Name $script:CommandInPrereleaseTestModule -Repository Local -AllVersions -ModuleName $script:DscTestModule
+
+        $results.Count | Should BeGreaterThan 1
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.PSGetModuleInfo.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should Not BeGreaterThan 0
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.PSGetModuleInfo.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+    }
+
+    It FindCommandSpecificPrereleaseVersionWithAllowPrerelease {
+        $version = "2.0.0-beta200"
+        $psgetCommandInfo = Find-Command -Name $script:CommandInPrereleaseTestModule -RequiredVersion $version -Repository Local -AllowPrerelease -ModuleName $script:DscTestModule
+
+        # check that IsPrerelease = true, and Prerelease string is not null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $version
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    It FindCommandSpecificPrereleaseVersionWithoutAllowPrerelease {
+        $version = "2.0.0-beta200"
+
+        $scriptBlock = {
+            Find-Command -Name $script:CommandInPrereleaseTestModule -RequiredVersion $version -Repository Local -ModuleName $script:DscTestModule
+        }
+
+        $expectedErrorMessage = $script:LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
+        $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+    
+    # Find-RoleCapability Tests
+    #---------------------------
+    It FindRoleCapabilityReturnsLatestStableVersion {
+        $psgetCommandInfo = Find-RoleCapability -Name $script:RoleCapabilityInPrereleaseTestModule -Repository Local
+
+        # check that IsPrerelease = false, and Prerelease string is null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Not Match '-'
+    }
+
+    It FindRoleCapabilityAllowPrereleaseReturnsLatestPrereleaseVersion {
+        $psgetCommandInfo = Find-RoleCapability -Name $script:RoleCapabilityInPrereleaseTestModule -Repository Local -AllowPrerelease -ModuleName $script:DscTestModule
+
+        # check that IsPrerelease = true, and Prerelease string is not null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match '-'
+    }
+    
+    It FindRoleCapabilityAllowPrereleaseAllVersions {
+        $results = Find-RoleCapability -Name $script:RoleCapabilityInPrereleaseTestModule -Repository Local -AllowPrerelease -AllVersions -ModuleName $script:DscTestModule
+
+        $results.Count | Should BeGreaterThan 1
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.PSGetModuleInfo.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.PSGetModuleInfo.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+    }
+    
+    It FindRoleCapabilityAllVersionsShouldReturnOnlyStableVersions {
+        $results = Find-RoleCapability -Name $script:RoleCapabilityInPrereleaseTestModule -Repository Local -AllVersions -ModuleName $script:DscTestModule
+
+        $results.Count | Should BeGreaterThan 1
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.PSGetModuleInfo.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should Not BeGreaterThan 0
+        $results | Where-Object { ($_.PSGetModuleInfo.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.PSGetModuleInfo.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
+    }
+
+    It FindRoleCapabilitySpecificPrereleaseVersionWithAllowPrerelease {
+        $version = "2.0.0-beta200"
+        $psgetCommandInfo = Find-RoleCapability -Name $script:RoleCapabilityInPrereleaseTestModule -RequiredVersion $version -Repository Local -AllowPrerelease -ModuleName $script:DscTestModule
+
+        # check that IsPrerelease = true, and Prerelease string is not null.
+        $psgetCommandInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $version
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
+        $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    It FindRoleCapabilitySpecificPrereleaseVersionWithoutAllowPrerelease {
+        $version = "2.0.0-beta200"
+
+        $scriptBlock = {
+            Find-RoleCapability -Name $script:RoleCapabilityInPrereleaseTestModule -RequiredVersion $version -Repository Local -ModuleName $script:DscTestModule
+        }
+
+        $expectedErrorMessage = $script:LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
+        $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+    # Downlevel Tests
+    #-----------------
+    It FindModuleByNameWithAllowPrereleaseDownlevel {
+        $script = {
+            Find-Module -Name $script:PrereleaseModuleName -AllowPrerelease -Repository Local
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+    It FindSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel {
+        $script = {
+            Find-Module -Name $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -Repository Local
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+    It FindSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel {
+        $script = {
+            Find-Module -Name $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
 Describe PowerShell.PSGet.FindModuleTests -Tags 'BVT','InnerLoop' {

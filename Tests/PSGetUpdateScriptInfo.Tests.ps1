@@ -166,14 +166,13 @@ Describe "Update Existing Script Info" -tag CI {
     It "UpdateScriptFileWithInvalidPrereleaseString" {
         $Version = "3.2.1-alpha+001"
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
-
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Update a script file info with an invalid Prerelease string
@@ -185,14 +184,13 @@ Describe "Update Existing Script Info" -tag CI {
     It "UpdateScriptFileWithInvalidPrereleaseString2" {
         $Version = "3.2.1-alpha-beta.01"
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
-
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Update a script file info with an invalid Prerelease string
@@ -204,14 +202,13 @@ Describe "Update Existing Script Info" -tag CI {
     It "UpdateScriptFileWithInvalidPrereleaseString3" {
         $Version = "3.2.1-alpha.1"
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
-
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Update a script file info with an invalid Prerelease string
@@ -223,14 +220,13 @@ Describe "Update Existing Script Info" -tag CI {
     It "UpdateScriptFileWithInvalidPrereleaseString4" {
         $Version = "3.2.1-error.0.0.0.1"
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ScriptFileInfo"
-
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Update a script file info with an Prerelease string when the version has insufficient parts.
@@ -242,14 +238,13 @@ Describe "Update Existing Script Info" -tag CI {
     It "UpdateScriptFileWithPrereleaseStringAndShortVersion" {
         $Version = "3.2-alpha001"
 
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
-        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ScriptFileInfo"
-
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
     # Purpose: Update a script file info with an Prerelease string when the version has insufficient parts.
@@ -261,14 +256,13 @@ Describe "Update Existing Script Info" -tag CI {
     It "UpdateScriptFileWithPrereleaseStringAndLongVersion" {
         $Version = "3.2.1.0.5-alpha001"
 
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
-        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ScriptFileInfo"
-
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidVersion -f $Version
+        $expectedFullyQualifiedErrorId = "InvalidVersion,Test-ScriptFileInfo"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Update a script file info with a valid Prerelease string and a version with sufficient parts.

@@ -379,14 +379,13 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
 #>
 "@
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
         $ScriptBlock = {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Find-Command"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Test a script file info with an invalid Prerelease string
@@ -414,14 +413,13 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
 #>
 "@
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
         $ScriptBlock = {
             Test-ScriptFileInfo -Path $scriptFilePath 
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Find-Command"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Test a script file info with an invalid Prerelease string
@@ -448,15 +446,14 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     Release notes for this script file.
 #>
 "@
-        
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
 
         $ScriptBlock = {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Find-Command"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Test a script file info with an invalid Prerelease string
@@ -484,14 +481,13 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
 #>
 "@
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
         $ScriptBlock = {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Find-Command"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Test a script file info with an Prerelease string when the version has insufficient parts.
@@ -518,15 +514,14 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
     Release notes for this script file.
 #>
 "@
-        
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
-        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
 
         $ScriptBlock = {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Find-Command"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
     # Purpose: Test a script file info with an Prerelease string when the version has too many parts.
@@ -554,14 +549,13 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
 #>
 "@
         
-        $expectedErrorMessage = "Cannot convert value '3.2.1.0.5-alpha001' to type 'System.Version'."
-        $expectedFullyQualifiedErrorId = "InvalidVersion,Test-ScriptFileInfo"
-
         $ScriptBlock = {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+        $expectedErrorMessage = $script:LocalizedData.InvalidVersion -f '3.2.1.0.5-alpha001'
+        $expectedFullyQualifiedErrorId = "InvalidVersion,Find-Command"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Test a script file info with a valid Prerelease string and a version with sufficient parts.
@@ -1230,12 +1224,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
-    # Purpose: Publish a script with a lower Prerelease string, without force.
-    #
-    # Action: Publish-Script [path]  
-    #
-    # Expected Result: Publish-Script should throw ScriptVersionShouldBeGreaterThanGalleryVersion errorid.
-    #
     It "PublishScriptSameVersionLowerPreReleaseWithoutForce" {
         
         # Publish first version
@@ -1367,12 +1355,7 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $scriptBlock | Should -Throw -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion,Publish-Script"
     }
 
-    # Purpose: Publish a script with an invalid Prerelease string
-    #
-    # Action: Publish-Script [path]
-    #
-    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
-    #
+    
     It "PublishScriptWithInvalidPrereleaseString" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1401,12 +1384,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    # Purpose: Publish a script with an invalid Prerelease string
-    #
-    # Action: Publish-Script [path] 
-    #
-    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
-    #
     It "PublishScriptWithInvalidPrereleaseString2" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1435,12 +1412,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    # Purpose: Publish a script with an invalid Prerelease string
-    #
-    # Action: Publish-Script [path]
-    #
-    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
-    #
     It "PublishScriptWithInvalidPrereleaseString3" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1469,12 +1440,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    # Purpose: Publish a script with an invalid Prerelease string
-    #
-    # Action: Publish-Script [path]
-    #
-    # Expected Result: Publish-Script should throw InvalidCharactersInPrereleaseString errorid.
-    #
     It "PublishScriptWithInvalidPrereleaseString4" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1503,12 +1468,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    # Purpose: Publish a script with an Prerelease string when the version has insufficient parts.
-    #
-    # Action: Publish-Script [path] 
-    #
-    # Expected Result: Publish-Script should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
-    #
     It "PublishScriptWithPrereleaseStringAndShortVersion" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1537,12 +1496,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
-    # Purpose: Publish a script with an Prerelease string when the version has too many parts.
-    #
-    # Action: Publish-Script [path] 
-    #
-    # Expected Result: Publish-Script should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
-    #
     It "PublishScriptWithPrereleaseStringAndLongVersion" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1571,12 +1524,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    # Purpose: Publish a script with a valid Prerelease string and a version with sufficient parts.
-    #
-    # Action: Publish-Script [path] 
-    #
-    # Expected Result: Publish-Script should successfully validate the version field.
-    #
     It "PublishScriptWithValidPrereleaseAndVersion" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -1603,12 +1550,6 @@ Describe PublishScriptPreReleaseTests -Tags 'TDD' {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # Purpose: Publish a script with a valid Prerelease string and a version with sufficient parts.
-    #
-    # Action: Publish-Script [path] 
-    #
-    # Expected Result: Publish-Script should successfully validate the version field.
-    #
     It "PublishScriptWithValidPrereleaseAndVersion2" {
         Set-Content -Path $script:PublishScriptFilePath -Value @"
 <#PSScriptInfo
@@ -2223,179 +2164,6 @@ Foo
                                                                         -Version $script:PublishScriptVersion `
                                                                         -Author Manikyam.Bavandla@microsoft.com `
                                                                         -Description 'Test script description #> goes here ' `
-                                                                        -Force
-                                                        }
-    }
-
-    # Purpose: Create a new script file info with an invalid Prerelease string
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1-alpha+001
-    #
-    # Expected Result: New-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It "NewScriptFileInfoWithInvalidPrereleaseString" {
-        $Version = "3.2.1-alpha+001"
-
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
-        $ScriptBlock = {
-            New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-
-    # Purpose: Create a new script file info with an invalid Prerelease string
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1-alpha-beta.01
-    #
-    # Expected Result: New-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It "NewScriptFileInfoWithInvalidPrereleaseString2" {
-        $Version = "3.2.1-alpha-beta.01"
-
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
-        $ScriptBlock = {
-            New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-
-    # Purpose: Create a new script file info with an invalid Prerelease string
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1-alpha.1
-    #
-    # Expected Result: New-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It "NewScriptFileInfoWithInvalidPrereleaseString3" {
-        $Version = "3.2.1-alpha.1"
-
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
-        $ScriptBlock = {
-            New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-
-    # Purpose: Create a new script file info with an invalid Prerelease string
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1-error.0.0.0.1
-    #
-    # Expected Result: New-ScriptFileInfo should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It "NewScriptFileInfoWithInvalidPrereleaseString4" {
-        $Version = "3.2.1-error.0.0.0.1"
-
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
-
-        $ScriptBlock = {
-            New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-
-    # Purpose: Create a new script file info with an Prerelease string when the version has insufficient parts.
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2-alpha+001
-    #
-    # Expected Result: New-ScriptFileInfo should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
-    #
-    It "NewScriptFileInfoWithPrereleaseStringAndShortVersion" {
-        $Version = "3.2-alpha001"
-
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
-        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
-
-        $ScriptBlock = {
-            New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-    
-    # Purpose: Create a new script file info with an Prerelease string when the version has insufficient parts.
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1.0.5-alpha+001
-    #
-    # Expected Result: New-ScriptFileInfo should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
-    #
-    It "NewScriptFileInfoWithPrereleaseStringAndLongVersion" {
-        $Version = "3.2.1.0.5-alpha001"
-
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
-        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
-
-        $ScriptBlock = {
-            New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-
-    # Purpose: Create a new script file info with a valid Prerelease string and a version with sufficient parts.
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1-alpha001
-    #
-    # Expected Result: New-ScriptFileInfo should successfully New the version field.
-    #
-    It "NewScriptFileInfoWithValidPrereleaseAndVersion" {
-        $Version = "3.2.1-alpha001"
-
-        New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-
-        $newScriptInfo = Test-ScriptFileInfo -Path $script:PublishScriptFilePath
-
-        $newScriptInfo.Version | Should -Match $Version
-    }
-
-    # Purpose: Create a new script file info with a valid Prerelease string and a version with sufficient parts.
-    #
-    # Action: New-ScriptFileInfo [path] -Version 3.2.1-gamma001
-    #
-    # Expected Result: New-ScriptFileInfo should successfully New the version field.
-    #
-    It "NewScriptFileInfoWithValidPrereleaseAndVersion2" {
-        $Version = "3.2.1-gamma001"
-
-        New-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $Version -Description "This is a new script info."
-
-        $newScriptInfo = Test-ScriptFileInfo -Path $script:PublishScriptFilePath
-
-        $newScriptInfo.Version | Should -Match $Version
-    }
-
-    # Purpose: Validate that New-ScriptFileInfo fails when a metadata value contains '#>' and/or '<#'
-    #
-    # Action: Create a script file with invalid Author value
-    #
-    # Expected Result: New-ScriptFileInfo operation should fail with an error
-    #
-    It NewScriptFileInfoWithInvalidAuthor {
-
-        if($PSVersionTable.PSVersion -eq '3.0.0')
-        {
-            $ErrorId = 'InvalidParameterValue'
-        }
-        else
-        {
-            $ErrorId = 'InvalidParameterValue,Validate-ScriptFileInfoParameters'
-        }
-
-        AssertFullyQualifiedErrorIdEquals -expectedFullyQualifiedErrorId $ErrorId `
-                                          -scriptblock {
-                                                         New-ScriptFileInfo -Path $script:PublishScriptFilePath `
-                                                                        -Version $script:PublishScriptVersion `
-                                                                        -Author Manikyam.Bavandla@microso<#ft.com `
-                                                                        -Description 'Test script description goes here ' `
                                                                         -Force
                                                         }
     }

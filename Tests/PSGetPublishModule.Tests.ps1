@@ -188,12 +188,16 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
 
 
         # Publish lower prerelease version
-        $preRelease = "-alpha001"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        $preRelease2 = "-alpha001"
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease2
+        
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey
         }
-        $scriptBlock | Should -Throw -ErrorId "ModuleVersionShouldBeGreaterThanGalleryVersion,Publish-Module"
+
+        $expectedErrorMessage = $script:LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($script:PublishModuleName,$version,$($version + $preRelease),$script:PSGalleryRepoPath)
+        $expectedFullyQualifiedErrorId = "ModuleVersionShouldBeGreaterThanGalleryVersion,Publish-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     It "PublishModuleSameVersionSamePreRelease" {
@@ -214,7 +218,9 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey
         }
 
-        $scriptBlock | Should -Throw -ErrorId "ModuleVersionIsAlreadyAvailableInTheGallery,Publish-Module"
+        $expectedErrorMessage = $script:LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($script:PublishModuleName,$version,$($version + $preRelease),$script:PSGalleryRepoPath)
+        $expectedFullyQualifiedErrorId = "ModuleVersionIsAlreadyAvailableInTheGallery,Publish-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
     It "PublishModuleSameVersionNoPreRelease" {
@@ -297,7 +303,10 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
-        $scriptBlock | Should -Throw -ErrorId "ModuleVersionShouldBeGreaterThanGalleryVersion,Publish-Module"
+
+        $expectedErrorMessage = $script:LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($script:PublishModuleName,$version,$version,$script:PSGalleryRepoPath)
+        $expectedFullyQualifiedErrorId = "ModuleVersionShouldBeGreaterThanGalleryVersion,Publish-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     # Purpose: Publish a module with an invalid Prerelease string
@@ -344,9 +353,8 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPreReleaseString
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
-
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
@@ -394,9 +402,8 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPreReleaseString
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
-
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
@@ -444,9 +451,8 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPreReleaseString
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
-
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
@@ -494,9 +500,8 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = "The PreRelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the PreRelease string."
+        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPreReleaseString
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
-
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
@@ -544,9 +549,8 @@ Describe PublishModulePreReleaseTests -Tags 'TDD' {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
+        $expectedErrorMessage = $script:LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
         $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Publish-Module"
-
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
