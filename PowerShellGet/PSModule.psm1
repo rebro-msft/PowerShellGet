@@ -1566,7 +1566,7 @@ function Save-Module
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameAndLiteralPathParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
@@ -1574,7 +1574,7 @@ function Save-Module
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameAndLiteralPathParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ValueFromPipelineByPropertyName=$true,
@@ -1582,7 +1582,7 @@ function Save-Module
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameAndLiteralPathParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
@@ -1618,7 +1618,11 @@ function Save-Module
 
         [Parameter()]
         [switch]
-        $Force
+        $Force,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -1636,6 +1640,8 @@ function Save-Module
         $PSBoundParameters["Provider"] = $script:PSModuleProviderName
         $PSBoundParameters["MessageResolver"] = $script:PackageManagementSaveModuleMessageResolverScriptBlock
         $PSBoundParameters[$script:PSArtifactType] = $script:PSArtifactTypeModule
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
         
         # When -Force is specified, Path will be created if not available.
         if(-not $Force)
@@ -1683,7 +1689,8 @@ function Save-Module
                                                            -TestWildcardsInName `
                                                            -MinimumVersion $MinimumVersion `
                                                            -MaximumVersion $MaximumVersion `
-                                                           -RequiredVersion $RequiredVersion
+                                                           -RequiredVersion $RequiredVersion `
+                                                           -AllowPrerelease:$AllowPrerelease
 
             if(-not $ValidationResult)
             {
@@ -1799,19 +1806,19 @@ function Install-Module
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ParameterSetName='NameParameterSet')]
@@ -1847,7 +1854,11 @@ function Install-Module
 
         [Parameter()]
         [switch]
-        $Force
+        $Force,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -1886,6 +1897,8 @@ function Install-Module
         $PSBoundParameters["MessageResolver"] = $script:PackageManagementInstallModuleMessageResolverScriptBlock
         $PSBoundParameters[$script:PSArtifactType] = $script:PSArtifactTypeModule
         $PSBoundParameters['Scope'] = $Scope
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
 
         if($PSCmdlet.ParameterSetName -eq "NameParameterSet")
         {
@@ -1894,7 +1907,8 @@ function Install-Module
                                                            -TestWildcardsInName `
                                                            -MinimumVersion $MinimumVersion `
                                                            -MaximumVersion $MaximumVersion `
-                                                           -RequiredVersion $RequiredVersion
+                                                           -RequiredVersion $RequiredVersion `
+                                                           -AllowPrerelease:$AllowPrerelease
 
             if(-not $ValidationResult)
             {
@@ -1999,7 +2013,7 @@ function Install-Module
                                 }
                                 else
                                 {
-                                    $sourceTrusted = $psCmdlet.ShouldContinue("$message", "$RepositoryIsNotTrusted", [ref]$YesToAll, [ref]$NoToAll)
+                                     $sourceTrusted = $psCmdlet.ShouldContinue("$message", "$RepositoryIsNotTrusted", [ref]$YesToAll, [ref]$NoToAll)
                                 }                               
 
                                 if($sourceTrusted)
@@ -2319,22 +2333,26 @@ function Get-InstalledModule
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter()]
         [switch]
-        $AllVersions
+        $AllVersions,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Process
@@ -2344,7 +2362,8 @@ function Get-InstalledModule
                                                        -MinimumVersion $MinimumVersion `
                                                        -MaximumVersion $MaximumVersion `
                                                        -RequiredVersion $RequiredVersion `
-                                                       -AllVersions:$AllVersions
+                                                       -AllVersions:$AllVersions `
+                                                       -AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {
@@ -7463,7 +7482,8 @@ function New-PSGetItemInfo
 
         $PSGetItemInfo = Microsoft.PowerShell.Utility\New-Object PSCustomObject -Property ([ordered]@{
                 Name = $swid.Name
-                Version = $swid.Version
+                Version = $swid.Version #-split '-',2 | Select-Object -First 1
+                #Prerelease = $swid.Version -split '-',2 | Select-Object -Skip 1
                 Type = $Type    
                 Description = (Get-First $swid.Metadata["description"])
                 Author = (Get-EntityName -SoftwareIdentity $swid -Role "author")
@@ -9159,7 +9179,7 @@ function Get-DynamicOptions
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name Includes -ExpectedType StringArray -IsRequired $false -PermittedValues $script:IncludeValidSet)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name DscResource -ExpectedType StringArray -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name RoleCapability -ExpectedType StringArray -IsRequired $false)
-                    Write-Output -InputObject (New-DynamicOption -Category $category -Name AllowPrereleaseVersions -ExpectedType Switch -IsRequired $false)
+                    Write-Output -InputObject (New-DynamicOption -Category $category -Name 'AllowPrereleaseVersions' -ExpectedType Switch -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name Command -ExpectedType StringArray -IsRequired $false)
                 }
 
@@ -9181,6 +9201,7 @@ function Get-DynamicOptions
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name 'SkipPublisherCheck' -ExpectedType Switch -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name "InstallUpdate" -ExpectedType Switch -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name 'NoPathUpdate' -ExpectedType Switch -IsRequired $false)
+                    Write-Output -InputObject (New-DynamicOption -Category $category -Name 'AllowPrereleaseVersions' -ExpectedType Switch -IsRequired $false)
                 }
     }
 }
@@ -10635,8 +10656,8 @@ function Install-PackageUtility
     $SkipPublisherCheck = $false
     $AllowClobber = $false
     $Debug = $false
-    $MinimumVersion = $null
-    $RequiredVersion = $null
+    $MinimumVersion = ""
+    $RequiredVersion = ""
     $IsSavePackage = $false
     $Scope = $null
     $NoPathUpdate = $false
@@ -10871,7 +10892,6 @@ function Install-PackageUtility
                     {
                         $message = $LocalizedData.ModuleWithRequiredVersionAlreadyInstalled -f ($InstalledModuleInfo.Version, $InstalledModuleInfo.Name, $InstalledModuleInfo.ModuleBase, $InstalledModuleInfo.Version)
                         Write-Error -Message $message -ErrorId "ModuleWithRequiredVersionAlreadyInstalled" -Category InvalidOperation
-
                         return
                     }
                 }
@@ -10986,7 +11006,6 @@ function Install-PackageUtility
             if(-not $provider)
             {
                 Write-Error -Message ($LocalizedData.PackageManagementProviderIsNotAvailable -f $providerName)
-
                 return
             }
 
@@ -11062,7 +11081,15 @@ function Install-PackageUtility
                 # By default, PowerShell module versions will be installed/updated Side-by-Side.
                 if(Test-ModuleSxSVersionSupport)
                 {
-                    $destinationModulePath = Microsoft.PowerShell.Management\Join-Path -Path $destinationModulePath -ChildPath $pkg.Version
+                    # Need to pull out the prerelease string from the version before using it in the path
+                    $packageVersion = $pkg.Version
+
+                    if ($packageVersion -match '-')
+                    {
+                        $packageVersion = $packageVersion -split '-',2 | Select-Object -First 1
+                    }
+
+                    $destinationModulePath = Microsoft.PowerShell.Management\Join-Path -Path $destinationModulePath -ChildPath $packageVersion
                 }
 
                 $destinationscriptPath = $scriptDestination
@@ -12821,13 +12848,13 @@ function Test-ModuleInstalled
         $Name,
 
         [Parameter()]
-        [Version]
+        [string]
         $RequiredVersion
     )
 
     # Check if module is already installed
     $availableModule = Microsoft.PowerShell.Core\Get-Module -ListAvailable -Name $Name -Verbose:$false | 
-                           Microsoft.PowerShell.Core\Where-Object {-not (Test-ModuleSxSVersionSupport) -or -not $RequiredVersion -or ($RequiredVersion -eq $_.Version)} | 
+                           Microsoft.PowerShell.Core\Where-Object {-not (Test-ModuleSxSVersionSupport) -or -not $RequiredVersion -or ($RequiredVersion -eq $_.Version.ToString())} | 
                                Microsoft.PowerShell.Utility\Select-Object -Unique -First 1 -ErrorAction Ignore
 
     return $availableModule
@@ -14443,7 +14470,7 @@ function Test-ModuleInUse
 
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        [Version]
+        [string]
         $ModuleVersion
     )
 
