@@ -2988,7 +2988,6 @@ function Publish-Script
 
                 if($galleryScriptVersion -eq $toPublishScriptVersion)
                 {
-                    
                     $message = $LocalizedData.ScriptVersionIsAlreadyAvailableInTheGallery -f ($scriptName,
                                                                                               $PSScriptInfo.Version,
                                                                                               $currentPSGetItemInfo.Version,
@@ -2999,31 +2998,65 @@ function Publish-Script
                                -CallerPSCmdlet $PSCmdlet `
                                -ErrorCategory InvalidOperation
                 }
-                <# NOTE:  In string comparison, '1.0.0' < '1.0.0-alpha'.  But in SemVer, it is the opposite.
-                          Adding a space to the front of prerelease versions reverses the order, making string comparison == SemVer.
-                          It is a clever workaround.
-                #>
-                if ($galleryScriptVersion -match '-')
-                {
-                    $galleryScriptVersion = " $galleryScriptVersion"
-                }
-                if ($toPublishScriptVersion -match '-')
-                {
-                    $toPublishScriptVersion = " $toPublishScriptVersion"
-                }
 
-                if(-not $Force -and ($galleryScriptVersion -gt $toPublishScriptVersion))
+                $galleryScriptVer,$galleryScriptPrerelease = $galleryScriptVersion -split '-',2
+                $toPublishScriptVer,$toPublishScriptPrerelease = $toPublishScriptVersion -split '-',2
+
+                if ($galleryScriptVer -eq $toPublishScriptVer)
+                {
+                    # Prerelease strings will not both be null, otherwise would have terminated already above
+
+                    if (-not $Force -and (-not $galleryScriptPrerelease -and $toPublishScriptPrerelease))
+                    {
+                        # User is trying to publish a new Prerelease version AFTER publishing the stable version.
+                        $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
+                                                                                                     $PSScriptInfo.Version,
+                                                                                                     $currentPSGetItemInfo.Version,
+                                                                                                     $currentPSGetItemInfo.RepositorySourceLocation)
+                        ThrowError -ExceptionName "System.InvalidOperationException" `
+                                -ExceptionMessage $message `
+                                -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion" `
+                                -CallerPSCmdlet $PSCmdlet `
+                                -ErrorCategory InvalidOperation
+                    }
+
+                    # elseif ($galleryScriptPrerelease -and -not $toPublishScriptPrerelease) --> allow publish
+                    # User is attempting to publish a stable version after publishing a Prerelease version (allowed).
+
+                    elseif($galleryScriptPrerelease -and $toPublishScriptPrerelease)
+                    {
+                        # if ($galleryScriptPrerelease -eq $toPublishScriptPrerelease) --> not reachable, would have terminated already above.
+                        
+                        if (-not $Force -and ($galleryScriptPrerelease -gt $toPublishScriptPrerelease))
+                        {
+                            $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
+                                                                                                     $PSScriptInfo.Version,
+                                                                                                     $currentPSGetItemInfo.Version,
+                                                                                                     $currentPSGetItemInfo.RepositorySourceLocation)
+                            ThrowError -ExceptionName "System.InvalidOperationException" `
+                                    -ExceptionMessage $message `
+                                    -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion" `
+                                    -CallerPSCmdlet $PSCmdlet `
+                                    -ErrorCategory InvalidOperation
+                        }
+
+                        # elseif ($galleryScriptPrerelease -lt $toPublishScriptPrerelease) --> allow publish
+                    }
+                }
+                elseif (-not $Force -and ($galleryScriptVer -gt $toPublishScriptVer))
                 {
                     $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
-                                                                                                 $PSScriptInfo.Version,
-                                                                                                 $currentPSGetItemInfo.Version,
-                                                                                                 $currentPSGetItemInfo.RepositorySourceLocation)
+                                                                                                     $PSScriptInfo.Version,
+                                                                                                     $currentPSGetItemInfo.Version,
+                                                                                                     $currentPSGetItemInfo.RepositorySourceLocation)
                     ThrowError -ExceptionName "System.InvalidOperationException" `
-                               -ExceptionMessage $message `
-                               -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion" `
-                               -CallerPSCmdlet $PSCmdlet `
-                               -ErrorCategory InvalidOperation
+                            -ExceptionMessage $message `
+                            -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion" `
+                            -CallerPSCmdlet $PSCmdlet `
+                            -ErrorCategory InvalidOperation
                 }
+
+                # else ($galleryScriptVer -lt $toPublishScriptVer) --> allow publish
             }
 
             $shouldProcessMessage = $LocalizedData.PublishScriptwhatIfMessage -f ($PSScriptInfo.Version, $scriptName)
