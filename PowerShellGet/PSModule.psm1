@@ -3281,7 +3281,7 @@ function Save-Script
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameAndLiteralPathParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
@@ -3289,7 +3289,7 @@ function Save-Script
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameAndLiteralPathParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ValueFromPipelineByPropertyName=$true,
@@ -3297,7 +3297,7 @@ function Save-Script
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameAndLiteralPathParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
@@ -3343,7 +3343,11 @@ function Save-Script
 
         [Parameter()]
         [switch]
-        $Force
+        $Force,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -3361,6 +3365,8 @@ function Save-Script
         $PSBoundParameters["Provider"] = $script:PSModuleProviderName
         $PSBoundParameters["MessageResolver"] = $script:PackageManagementSaveScriptMessageResolverScriptBlock
         $PSBoundParameters[$script:PSArtifactType] = $script:PSArtifactTypeScript
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
 
         # When -Force is specified, Path will be created if not available.
         if(-not $Force)
@@ -3410,7 +3416,8 @@ function Save-Script
                                                            -TestWildcardsInName `
                                                            -MinimumVersion $MinimumVersion `
                                                            -MaximumVersion $MaximumVersion `
-                                                           -RequiredVersion $RequiredVersion
+                                                           -RequiredVersion $RequiredVersion `
+                                                           -AllowPrerelease:$AllowPrerelease
 
             if(-not $ValidationResult)
             {
@@ -3528,19 +3535,19 @@ function Install-Script
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ParameterSetName='NameParameterSet')]
@@ -3572,7 +3579,11 @@ function Install-Script
 
         [Parameter()]
         [switch]
-        $Force
+        $Force,
+
+        [Parameter()]
+        [switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -3628,6 +3639,8 @@ function Install-Script
         $PSBoundParameters["MessageResolver"] = $script:PackageManagementInstallScriptMessageResolverScriptBlock
         $PSBoundParameters[$script:PSArtifactType] = $script:PSArtifactTypeScript
         $PSBoundParameters['Scope'] = $Scope
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
 
         if($PSCmdlet.ParameterSetName -eq "NameParameterSet")
         {
@@ -3636,7 +3649,8 @@ function Install-Script
                                                            -TestWildcardsInName `
                                                            -MinimumVersion $MinimumVersion `
                                                            -MaximumVersion $MaximumVersion `
-                                                           -RequiredVersion $RequiredVersion
+                                                           -RequiredVersion $RequiredVersion `
+                                                           -AllowPrerelease:$AllowPrerelease
 
             if(-not $ValidationResult)
             {
