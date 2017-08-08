@@ -23,6 +23,10 @@ function SuiteSetup {
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:TempPath = Get-TempPath
 
+    $script:PrereleaseScriptName = "TestScript"
+    $script:PrereleaseScriptLatestPrereleaseVersion = "3.0.0-beta2"
+
+
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
 
@@ -36,7 +40,7 @@ function SuiteSetup {
         Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
     }
 
-    GetAndSet-PSGetTestGalleryDetails -IsScriptSuite -SetPSGallery
+    #GetAndSet-PSGetTestGalleryDetails -IsScriptSuite -SetPSGallery
 
     Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
     Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
@@ -97,6 +101,87 @@ function SuiteCleanup {
         Reset-PATHVariableForScriptsInstallLocation -Scope CurrentUser
     }
 }
+
+
+
+Describe UpdateScriptPrereleaseTests -Tags "TDD" {
+    BeforeAll {
+        SuiteSetup
+    }
+
+    AfterAll {
+        SuiteCleanup
+    }
+
+    AfterEach {
+        Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
+        Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
+        
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
+    }
+
+    # stable --> stable
+    It "UpdatePrereleaseScriptFromStableToStable" {
+        Install-Script $script:PrereleaseScriptName -RequiredVersion 1.0.0 -Repository Local
+        Update-Script $script:PrereleaseScriptName -RequiredVersion 2.0.0
+
+        $res = Get-InstalledScript -Name $script:PrereleaseScriptName
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseScriptName
+        $res.Version | Should Match "2.0.0"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+
+    # stable --> prerelease
+    It "UpdatePrereleaseScriptFromStableToPrerelease" {
+        Install-Script $script:PrereleaseScriptName -RequiredVersion 1.0.0 -Repository Local
+        Update-Script $script:PrereleaseScriptName -RequiredVersion "2.0.0-alpha005" -AllowPrerelease
+
+        $res = Get-InstalledScript -Name $script:PrereleaseScriptName -AllowPrerelease
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseScriptName
+        $res.Version | Should Match "2.0.0-alpha005"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    # prerelease --> stable
+    It "UpdatePrereleaseScriptFromPrereleaseToStable" {
+        Install-Script $script:PrereleaseScriptName -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository Local
+        Update-Script $script:PrereleaseScriptName -RequiredVersion "2.0.0"
+
+        $res = Get-InstalledScript -Name $script:PrereleaseScriptName
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseScriptName
+        $res.Version | Should Match "2.0.0"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+
+    # prerelease --> prerelease
+    It "UpdatePrereleaseScriptFromPrereleaseToPrerelease" {
+        Install-Script $script:PrereleaseScriptName -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository Local
+        Update-Script $script:PrereleaseScriptName -RequiredVersion "3.0.0-beta2" -AllowPrerelease
+
+        $res = Get-InstalledScript -Name $script:PrereleaseScriptName -AllowPrerelease
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseScriptName
+        $res.Version | Should Match "3.0.0-beta2"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+}
+
 
 Describe PowerShell.PSGet.UpdateScriptTests -Tags 'BVT','InnerLoop' {
 

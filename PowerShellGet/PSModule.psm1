@@ -2056,12 +2056,12 @@ function Update-Module
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
@@ -2079,7 +2079,11 @@ function Update-Module
 
         [Parameter()]
         [Switch]
-        $Force
+        $Force,
+
+        [Parameter()]
+        [Switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -2095,7 +2099,8 @@ function Update-Module
         $ValidationResult = Validate-VersionParameters -CallerPSCmdlet $PSCmdlet `
                                                        -Name $Name `
                                                        -MaximumVersion $MaximumVersion `
-                                                       -RequiredVersion $RequiredVersion
+                                                       -RequiredVersion $RequiredVersion `
+                                                       -AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {
@@ -2110,6 +2115,8 @@ function Update-Module
         $GetPackageParameters["MessageResolver"] = $script:PackageManagementMessageResolverScriptBlock
         $GetPackageParameters['ErrorAction'] = 'SilentlyContinue'
         $GetPackageParameters['WarningAction'] = 'SilentlyContinue'
+        $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+        $null = $PSBoundParameters.Remove("AllowPrerelease")
 
         $PSGetItemInfos = @()
 
@@ -3878,12 +3885,12 @@ function Update-Script
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
@@ -3901,7 +3908,11 @@ function Update-Script
 
         [Parameter()]
         [Switch]
-        $Force
+        $Force,
+
+        [Parameter()]
+        [Switch]
+        $AllowPrerelease
     )
 
     Begin
@@ -3919,7 +3930,8 @@ function Update-Script
         $ValidationResult = Validate-VersionParameters -CallerPSCmdlet $PSCmdlet `
                                                        -Name $Name `
                                                        -MaximumVersion $MaximumVersion `
-                                                       -RequiredVersion $RequiredVersion
+                                                       -RequiredVersion $RequiredVersion `
+                                                       -AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {
@@ -4054,6 +4066,8 @@ function Update-Script
             $PSBoundParameters["PackageManagementProvider"] = $providerName 
             $PSBoundParameters["Name"] = $psgetItemInfo.Name
             $PSBoundParameters['Source'] = $psgetItemInfo.Repository
+            $PSBoundParameters[$script:AllowPrereleaseVersions] = $AllowPrerelease
+            $null = $PSBoundParameters.Remove("AllowPrerelease")
 
             Get-PSGalleryApiAvailability -Repository (Get-SourceName -Location $psgetItemInfo.RepositorySourceLocation)
 
@@ -4178,18 +4192,22 @@ function Get-InstalledScript
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true)]
         [ValidateNotNull()]
-        [Version]
-        $MaximumVersion
+        [string]
+        $MaximumVersion,
+
+        [Parameter()]
+        [Switch]
+        $AllowPrerelease
     )
 
     Process
@@ -4198,7 +4216,8 @@ function Get-InstalledScript
                                                        -Name $Name `
                                                        -MinimumVersion $MinimumVersion `
                                                        -MaximumVersion $MaximumVersion `
-                                                       -RequiredVersion $RequiredVersion
+                                                       -RequiredVersion $RequiredVersion `
+                                                       -AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {

@@ -22,6 +22,9 @@ function SuiteSetup {
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:TempPath = Get-TempPath
 
+    $script:PrereleaseModuleName = "TestPackage"
+    $script:PrereleaseModuleLatestPrereleaseVersion = "2.0.0-gamma300"
+
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
 
@@ -35,7 +38,7 @@ function SuiteSetup {
         Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
     }
 
-    GetAndSet-PSGetTestGalleryDetails -SetPSGallery
+    #GetAndSet-PSGetTestGalleryDetails -SetPSGallery
 
     PSGetTestUtils\Uninstall-Module ContosoServer
     PSGetTestUtils\Uninstall-Module ContosoClient
@@ -76,6 +79,88 @@ function SuiteCleanup {
         }
     }
 }
+
+
+
+Describe UpdateModulePrereleaseTests -Tags "TDD" {
+    BeforeAll {
+        SuiteSetup
+    }
+
+    AfterAll {
+        SuiteCleanup
+    }
+
+    AfterEach {
+        PSGetTestUtils\Uninstall-Module ContosoServer
+        PSGetTestUtils\Uninstall-Module ContosoClient
+        PSGetTestUtils\Uninstall-Module TestPackage
+    }
+
+    # prerelease --> stable
+    It "UpdateModuleWithoutAllowPrereleaseUpdatesToStableVersion" {
+        Install-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
+        Update-Module $script:PrereleaseModuleName # Should update to stable version 2.0.0
+
+        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseModuleName
+        $res.Version | Should Match "2.0.0"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+
+
+    # stable --> stable
+    It "UpdatePrereleaseModuleFromStableToStable" {
+        Install-Module $script:PrereleaseModuleName -RequiredVersion 1.0.0 -Repository Local
+        Update-Module $script:PrereleaseModuleName -RequiredVersion 2.0.0
+
+        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseModuleName
+        $res.Version | Should Match "2.0.0"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+
+    # stable --> prerelease
+    It "UpdatePrereleaseModuleFromStableToPrerelease" {
+        Install-Module $script:PrereleaseModuleName -RequiredVersion 1.0.0 -Repository Local
+        Update-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease
+
+        $res = Get-InstalledModule -Name $script:PrereleaseModuleName -AllowPrerelease
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseModuleName
+        $res.Version | Should Match "2.0.0-beta500"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    
+
+    # prerelease --> prerelease
+    It "UpdatePrereleaseModuleFromPrereleaseToPrerelease" {
+        Install-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
+        Update-Module $script:PrereleaseModuleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
+
+        $res = Get-InstalledModule -Name $script:PrereleaseModuleName -AllowPrerelease
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $script:PrereleaseModuleName
+        $res.Version | Should Match "3.0.0-alpha9"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+}
+
 
 Describe PowerShell.PSGet.UpdateModuleTests -Tags 'BVT','InnerLoop' {
 
