@@ -37,7 +37,7 @@ function SuiteSetup {
         Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
     }
 
-    GetAndSet-PSGetTestGalleryDetails -SetPSGallery
+    #GetAndSet-PSGetTestGalleryDetails -SetPSGallery
 
     PSGetTestUtils\Uninstall-Module ContosoServer
     PSGetTestUtils\Uninstall-Module ContosoClient
@@ -57,6 +57,80 @@ function SuiteCleanup {
 
     # Import the PowerShellGet provider to reload the repositories.
     $null = Import-PackageProvider -Name PowerShellGet -Force
+}
+
+Describe UninstallModulePrereleaseTests -Tags "TDD" {
+
+    BeforeAll {
+        SuiteSetup
+    }
+
+    AfterAll {
+        SuiteCleanup
+    }
+
+    AfterEach {
+        PSGetTestUtils\Uninstall-Module ContosoServer
+        PSGetTestUtils\Uninstall-Module ContosoClient
+        PSGetTestUtils\Uninstall-Module DscTestModule
+        PSGetTestUtils\Uninstall-Module TestPackage
+    }
+
+    # Uninstall a prerelease module
+
+    It UninstallPrereleaseModule {
+
+        $moduleName = "TestPackage"
+
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "1.0.0" -Repository Local -Force
+        $mod = Get-InstalledModule -Name $moduleName
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "1.0.0"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "false"
+
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local -Force
+        $mod = Get-InstalledModule -Name $moduleName -AllowPrerelease
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+        PowerShellGet\Update-Module -Name $moduleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
+        $mod2 = Get-InstalledModule -Name $moduleName -AllowPrerelease
+        $mod2 | Should Not Be $null
+        $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod2.Name | Should Be $moduleName
+        $mod2.Version | Should Match "3.0.0-alpha9"
+        $mod2.AdditionalMetadata | Should Not Be $null
+        $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
+        
+        $modules2 = Get-InstalledModule -Name $moduleName -AllVersions -AllowPrerelease
+
+        if($PSVersionTable.PSVersion -gt '5.0.0')
+        {
+            $modules2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 3
+        }
+        else
+        {
+            $mod2.Name | Should Be $moduleName
+        }   
+
+        PowerShellGet\Uninstall-Module -Name $moduleName -AllVersions
+
+        $scriptBlock = {
+            Get-InstalledModule -Name $moduleName -AllowPrerelease
+        }
+
+        $expectedFullyQualifiedErrorId = 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
+        $scriptBlock | Should -Throw -ErrorId $expectedFullyQualifiedErrorId
+    }
+
+
 }
 
 Describe 'PowerShell.PSGet.UnInstallModuleTests' -Tags 'BVT','InnerLoop' {
