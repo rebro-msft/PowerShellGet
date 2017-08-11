@@ -130,18 +130,13 @@ Describe UninstallScriptPrereleaseTests -Tags "TDD" {
             $mod2.Name | Should Be $scriptName
         }   
 
+
         PowerShellGet\Uninstall-Script -Name $scriptName
+        Get-InstalledScript -Name $scriptName -AllowPrerelease -ErrorVariable ev #-ErrorAction SilentlyContinue
 
-        $scriptBlock = {
-            Get-InstalledScript -Name $scriptName -AllowPrerelease
-        }
-
-        $expectedFullyQualifiedErrorId = 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
-        $scriptBlock | Should -Throw -ErrorId $expectedFullyQualifiedErrorId
+        $ev.Count | Should Not Be 0
+        $ev[0].FullyQualifiedErrorId | Should Be 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
     }
-
-
-
 }
 
 

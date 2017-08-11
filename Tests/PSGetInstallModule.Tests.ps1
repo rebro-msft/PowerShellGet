@@ -25,7 +25,7 @@ function SuiteSetup {
     $null = New-Item -Path $script:MyDocumentsModulesPath -ItemType Directory -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
     
     $script:PrereleaseModuleName = "TestPackage"
-    $script:PrereleaseModuleLatestPrereleaseVersion = "2.0.0-gamma300"
+    $script:PrereleaseModuleLatestPrereleaseVersion = "3.0.0-alpha9"
     $script:DscTestModule = "DscTestModule"
     $script:DscTestModuleLatestVersion = "2.5.0-gamma"
     $script:CommandInPrereleaseModule = "Test-PSGetTestCmdlet"

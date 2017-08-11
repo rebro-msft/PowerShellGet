@@ -121,17 +121,19 @@ Describe UninstallModulePrereleaseTests -Tags "TDD" {
         }   
 
         PowerShellGet\Uninstall-Module -Name $moduleName -AllVersions
+        Get-InstalledModule -Name $moduleName -AllVersions -AllowPrerelease -ErrorVariable ev #-ErrorAction SilentlyContinue
 
-        $scriptBlock = {
-            Get-InstalledModule -Name $moduleName -AllowPrerelease
-        }
-
-        $expectedFullyQualifiedErrorId = 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
-        $scriptBlock | Should -Throw -ErrorId $expectedFullyQualifiedErrorId
+        $ev.Count | Should Not Be 0
+        $ev[0].FullyQualifiedErrorId | Should Be 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
     }
-
-
 }
+
+
+
+
+
+
+
 
 Describe 'PowerShell.PSGet.UnInstallModuleTests' -Tags 'BVT','InnerLoop' {
 

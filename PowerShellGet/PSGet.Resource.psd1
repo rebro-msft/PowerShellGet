@@ -188,6 +188,7 @@ ConvertFrom-StringData @'
         PowerShellGetUpdateIsNotSupportedOnLowerPSVersions=Self update of the PowerShellGet module is supported only in PowerShell 5.0 and newer releases. It is not supported in PowerShell 3.0 or 4.0.
         ScriptVersionShouldBeGreaterThanGalleryVersion=Script '{0}' with version '{1}' cannot be published. The version must exceed the current version '{2}' that exists in the repository '{3}', or you must specify -Force.
         ScriptVersionIsAlreadyAvailableInTheGallery=The script '{0}' with version '{1}' cannot be published as the current version '{2}' is already available in the repository '{3}'.
+        ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString=Script '{0}' with version '{1}' and prerelease '{2}' cannot be published. The prerelease string must exceed the current prerelease string '{3}' that exists in the repository '{4}', or you must specify -Force.
         ScriptParseError=The specified script file '{0}' has parse errors, try again after fixing the parse errors.
         InvalidScriptToPublish=Script file '{0}' cannot be published because it does not have the required script metadata. Run Update-ScriptFileInfo -Path '{1}' to add the script metadata.
         FailedToCreateCompressedScript=Failed to generate the compressed file for script '{0}'.

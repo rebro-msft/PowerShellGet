@@ -1497,9 +1497,7 @@ function Find-Module
             }
         }
         
-        $results = PackageManagement\Find-Package @PSBoundParameters
-
-		$filteredResults = $results | Microsoft.PowerShell.Core\ForEach-Object {
+		PackageManagement\Find-Package @PSBoundParameters | Microsoft.PowerShell.Core\ForEach-Object {
 
             $psgetItemInfo = New-PSGetItemInfo -SoftwareIdentity $_ -Type $script:PSArtifactTypeModule 
                                                         
@@ -1514,7 +1512,6 @@ function Find-Module
             }
         }
 
-        $filteredResults
 
         # Perform Telemetry if Repository is not supplied or Repository contains PSGallery
         # We are only interested in finding modules not in PSGallery
@@ -2249,19 +2246,19 @@ function Uninstall-Module
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
         
         [Parameter(ParameterSetName='NameParameterSet')]
@@ -2355,11 +2352,11 @@ function Get-InstalledModule
         
         [Parameter()]
         [switch]
-        $AllVersions,
+        $AllVersions#,
 
-        [Parameter()]
-        [switch]
-        $AllowPrerelease
+        #[Parameter()]
+        #[switch]
+        #$AllowPrerelease
     )
 
     Process
@@ -2369,8 +2366,8 @@ function Get-InstalledModule
                                                        -MinimumVersion $MinimumVersion `
                                                        -MaximumVersion $MaximumVersion `
                                                        -RequiredVersion $RequiredVersion `
-                                                       -AllVersions:$AllVersions `
-                                                       -AllowPrerelease:$AllowPrerelease
+                                                       -AllVersions:$AllVersions #`
+                                                       #-AllowPrerelease:$AllowPrerelease
 
         if(-not $ValidationResult)
         {
@@ -3009,48 +3006,52 @@ function Publish-Script
                 $galleryScriptVer,$galleryScriptPrerelease = $galleryScriptVersion -split '-',2
                 $toPublishScriptVer,$toPublishScriptPrerelease = $toPublishScriptVersion -split '-',2
 
-                if ($galleryScriptVer -eq $toPublishScriptVer)
+                if ($galleryScriptVer -eq $toPublishScriptVer -and -not $Force)
                 {
                     # Prerelease strings will not both be null, otherwise would have terminated already above
 
-                    if (-not $Force -and (-not $galleryScriptPrerelease -and $toPublishScriptPrerelease))
+                    if (-not $galleryScriptPrerelease -and $toPublishScriptPrerelease)
                     {
                         # User is trying to publish a new Prerelease version AFTER publishing the stable version.
-                        $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
-                                                                                                     $PSScriptInfo.Version,
-                                                                                                     $currentPSGetItemInfo.Version,
-                                                                                                     $currentPSGetItemInfo.RepositorySourceLocation)
+                        $message = $LocalizedData.ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString -f ($scriptName,
+                                                                                                                       $toPublishScriptVer,
+                                                                                                                       $toPublishScriptPrerelease,
+                                                                                                                       $galleryScriptPrerelease,
+                                                                                                                       $currentPSGetItemInfo.RepositorySourceLocation)
                         ThrowError -ExceptionName "System.InvalidOperationException" `
                                 -ExceptionMessage $message `
-                                -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion" `
+                                -ErrorId "ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString" `
                                 -CallerPSCmdlet $PSCmdlet `
                                 -ErrorCategory InvalidOperation
                     }
 
                     # elseif ($galleryScriptPrerelease -and -not $toPublishScriptPrerelease) --> allow publish
-                    # User is attempting to publish a stable version after publishing a Prerelease version (allowed).
+                    # User is attempting to publish a stable version after publishing a prerelease version (allowed).
 
                     elseif($galleryScriptPrerelease -and $toPublishScriptPrerelease)
                     {
                         # if ($galleryScriptPrerelease -eq $toPublishScriptPrerelease) --> not reachable, would have terminated already above.
                         
-                        if (-not $Force -and ($galleryScriptPrerelease -gt $toPublishScriptPrerelease))
+                        if ($galleryScriptPrerelease -gt $toPublishScriptPrerelease)
                         {
-                            $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
-                                                                                                     $PSScriptInfo.Version,
-                                                                                                     $currentPSGetItemInfo.Version,
-                                                                                                     $currentPSGetItemInfo.RepositorySourceLocation)
+                            # User is trying to publish a lower prerelease version.
+                            $message = $LocalizedData.ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString -f ($scriptName,
+                                                                                                                           $toPublishScriptVer,
+                                                                                                                           $toPublishScriptPrerelease,
+                                                                                                                           $galleryScriptPrerelease,
+                                                                                                                           $currentPSGetItemInfo.RepositorySourceLocation)
                             ThrowError -ExceptionName "System.InvalidOperationException" `
                                     -ExceptionMessage $message `
-                                    -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion" `
+                                    -ErrorId "ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString" `
                                     -CallerPSCmdlet $PSCmdlet `
                                     -ErrorCategory InvalidOperation
                         }
 
                         # elseif ($galleryScriptPrerelease -lt $toPublishScriptPrerelease) --> allow publish
+                        # User is trying to publish a newer prerelease version (allowed)
                     }
                 }
-                elseif (-not $Force -and ($galleryScriptVer -gt $toPublishScriptVer))
+                elseif ($galleryScriptVer -gt $toPublishScriptVer)
                 {
                     $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
                                                                                                      $PSScriptInfo.Version,
@@ -3064,6 +3065,7 @@ function Publish-Script
                 }
 
                 # else ($galleryScriptVer -lt $toPublishScriptVer) --> allow publish
+                # User is trying to publish a newer stable version (allowed)
             }
 
             $shouldProcessMessage = $LocalizedData.PublishScriptwhatIfMessage -f ($PSScriptInfo.Version, $scriptName)
@@ -4106,19 +4108,19 @@ function Uninstall-Script
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MinimumVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $RequiredVersion,
 
         [Parameter(ValueFromPipelineByPropertyName=$true,
                    ParameterSetName='NameParameterSet')]
         [ValidateNotNull()]
-        [Version]
+        [string]
         $MaximumVersion,
 
         [Parameter()]
@@ -8947,6 +8949,8 @@ function ValidateAndAdd-PSScriptInfoEntry
         $script:Version {
                             $KeyName = $script:Version
                             [Version]$Version = $null
+                            $versionPart = $Value -split '-',2 | Select-Object -First 1
+                            $prereleasePart = $Value -split '-',2 | Select-Object -Skip 1
                             
                             # Special case for prerelease string in version field, must pull out before parsing version
                             if ( ( $Value -match '-' ) -and 
