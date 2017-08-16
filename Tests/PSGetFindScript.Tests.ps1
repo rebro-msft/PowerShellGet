@@ -20,7 +20,6 @@ function SuiteSetup {
     
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:DscTestScript = "DscTestScript"
-    $script:PrereleaseTestScript = "TestScript"
 
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
@@ -35,7 +34,7 @@ function SuiteSetup {
         Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
     }
 
-    #GetAndSet-PSGetTestGalleryDetails -IsScriptSuite -SetPSGallery
+    GetAndSet-PSGetTestGalleryDetails -IsScriptSuite -SetPSGallery
 }
 
 function SuiteCleanup {
@@ -51,129 +50,6 @@ function SuiteCleanup {
     # Import the PowerShellGet provider to reload the repositories.
     $null = Import-PackageProvider -Name PowerShellGet -Force
 }
-
-
-
-Describe FindScriptTests -Tags 'TDD' {
-
-    BeforeAll {
-        SuiteSetup
-    }
-
-    AfterAll {
-        SuiteCleanup
-    }
-
-    # Downlevel Tests
-    #-----------------
-    It FindScriptByNameWithAllowPrereleaseDownlevel {
-        $script = {
-            Find-Script -Name $script:PrereleaseTestScript -AllowPrerelease -Repository Local
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Script -Name $script:PrereleaseTestScript -RequiredVersion "2.0.0-beta500" -Repository Local
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Script -Name $script:PrereleaseTestScript -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-
-    # Find-Script Tests
-    #-------------------
-    It FindScriptReturnsLatestStableVersion {
-        $psgetScriptInfo = Find-Script -Name $script:PrereleaseTestScript -Repository Local
-
-        # check that IsPrerelease = false, and Prerelease string is null.
-        $psgetScriptInfo.AdditionalMetadata | Should Not Be $null
-        $psgetScriptInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
-        $psgetScriptInfo.Version | Should Not Match '-'
-    }
-
-    It FindScriptAllowPrereleaseReturnsLatestPrereleaseVersion {
-        $psgetScriptInfo = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllowPrerelease
-
-        # check that IsPrerelease = true, and Prerelease string is not null.
-        $psgetScriptInfo.AdditionalMetadata | Should Not Be $null
-        $psgetScriptInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
-        $psgetScriptInfo.Version | Should Match '-'
-    }
-    
-    It FindScriptAllowPrereleaseAllVersions {
-        $results = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllowPrerelease -AllVersions
-
-        $results.Count | Should BeGreaterThan 1
-        $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
-        $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
-    }
-    
-    # >>>>>>> Failing (as expected, not yet implemented) <<<<<
-    It FindScriptAllVersionsShouldReturnOnlyStableVersions {
-        $results = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllVersions
-
-        $results.Count | Should BeGreaterThan 1
-        $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $true) -and ($_.Version -match '-') } | Measure-Object | ForEach-Object { $_.Count } | Should Not BeGreaterThan 0
-        $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
-    }
-
-    It FindScriptSpecificPrereleaseVersionWithAllowPrerelease {
-        $version = "3.0.0-beta2"
-        $psgetScriptInfo = Find-Script -Name $script:PrereleaseTestScript -RequiredVersion $version -Repository Local -AllowPrerelease
-
-        # check that IsPrerelease = true, and Prerelease string is not null.
-        $psgetScriptInfo.Version | Should Match $version
-        $psgetScriptInfo.AdditionalMetadata | Should Not Be $null
-        $psgetScriptInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
-    }
-
-    It FindScriptSpecificPrereleaseVersionWithoutAllowPrerelease {
-        $scriptBlock = {
-            Find-Script -Name $script:PrereleaseTestScript -RequiredVersion "3.0.0-beta2" -Repository Local
-        }
-        $expectedErrorMessage = $script:LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
-        $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Script"
-        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    }
-
-    <#
-    # Purpose: Validate Find-Script -AllowPrerelease -IncludeDependencies
-    #
-    # Action: Find-Script -AllowPrerelease -IncludeDependencies
-    #
-    # Expected Result: Find-Script -AllowPrerelease -IncludeDependencies should return the prerelease versions of the script and its dependencies.
-    #
-    It FindScriptAllowPrereleaseIncludeDependencies {
-
-        # try to get only one prerelease version
-        $resultsSingle = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllowPrerelease -MinimumVersion "0.1" -MaximumVersion "1.0" 
-        $resultsSingle.Count | Should Be 1
-        $resultsSingle.Name | Should Be $script:PrereleaseTestScript
-
-        # try to get only one prerelease version and its dependencies
-        $resultsDependencies = Find-Script -Name $script:PrereleaseTestScript -Repository Local -AllowPrerelease -MinimumVersion "0.1" -MaximumVersion "1.0"  -IncludeDependencies
-        $resultsDependencies.Count | Should BeGreaterThan $DependencyScriptNames.Count+1
-
-        # Check that it returns all dependencies and at least one dependency is a prerelease
-        $DependencyScriptNames = $resultsSingle.Dependencies.Name
-        $DependencyScriptNames | ForEach-Object { $resultsDependencies.Name -Contains $_.Name | Should Be $true }
-        $resultsDependencies | Where-Object { ($_.Name -ne $script:PrereleaseTestScript) -and ($_.AdditionalMetadata.IsPrerelease -eq $true) } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
-    }
-    #>
-
-}
-
 
 
 Describe PowerShell.PSGet.FindScriptTests -Tags 'BVT','InnerLoop' {

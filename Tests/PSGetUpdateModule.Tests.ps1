@@ -22,14 +22,11 @@ function SuiteSetup {
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:TempPath = Get-TempPath
 
-    $script:PrereleaseModuleName = "TestPackage"
-    $script:PrereleaseModuleLatestPrereleaseVersion = "3.0.0-alpha9"
-
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
 
     $psgetModuleInfo = Import-Module PowerShellGet -Global -Force -Passthru
-    Import-LocalizedData  script:LocalizedData -filename PSGet.Resource.psd1 -BaseDirectory $psgetModuleInfo.ModuleBase
+    Import-LocalizedData LocalizedData -filename PSGet.Resource.psd1 -BaseDirectory $psgetModuleInfo.ModuleBase
 
     $script:moduleSourcesFilePath= Join-Path $script:PSGetLocalAppDataPath "PSRepositories.xml"
     $script:moduleSourcesBackupFilePath = Join-Path $script:PSGetLocalAppDataPath "PSRepositories.xml_$(get-random)_backup"
@@ -38,7 +35,7 @@ function SuiteSetup {
         Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
     }
 
-    #GetAndSet-PSGetTestGalleryDetails -SetPSGallery
+    GetAndSet-PSGetTestGalleryDetails -SetPSGallery
 
     PSGetTestUtils\Uninstall-Module ContosoServer
     PSGetTestUtils\Uninstall-Module ContosoClient
@@ -81,114 +78,6 @@ function SuiteCleanup {
 }
 
 
-
-Describe UpdateModulePrereleaseTests -Tags "TDD" {
-    BeforeAll {
-        SuiteSetup
-    }
-
-    AfterAll {
-        SuiteCleanup
-    }
-
-    AfterEach {
-        PSGetTestUtils\Uninstall-Module ContosoServer
-        PSGetTestUtils\Uninstall-Module ContosoClient
-        PSGetTestUtils\Uninstall-Module TestPackage
-    }
-
-
-    # Updated to latest release version by default: When release version is installed (ex. 1.0.0 --> 2.0.0)
-    It "UpdateModuleFromReleaseToReleaseVersionByDefault" {
-        Install-Module $script:PrereleaseModuleName -RequiredVersion "1.0.0" -Repository Local
-        Update-Module $script:PrereleaseModuleName # Should update to latest stable version 2.0.0
-
-        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
-
-        $res | Should Not Be $null
-        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $res.Name | Should Be $script:PrereleaseModuleName
-        $res.Version | Should Match "2.0.0"
-        $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
-    }
-
-    # Updated to latest release version by default: When prerelease version is installed (ex. 1.0.0-omega55 --> 2.0.0)
-    It "UpdateModuleFromPrereleaseToReleaseVersionByDefault" {
-        Install-Module $script:PrereleaseModuleName -RequiredVersion "1.0.0-omega55" -AllowPrerelease -Repository Local
-        Update-Module $script:PrereleaseModuleName # Should update to latest stable version 2.0.0
-
-        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
-
-        $res | Should Not Be $null
-        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $res.Name | Should Be $script:PrereleaseModuleName
-        $res.Version | Should Match "2.0.0"
-        $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
-    }
-
-    # (In place update): prerelease to release, same root version.  (ex. 2.0.0-beta500 --> 2.0.0)
-    It "UpdateModuleSameVersionPrereleaseToReleaseInPlaceUpdate" {
-        Install-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
-        Update-Module $script:PrereleaseModuleName # Should update to latest stable version 2.0.0
-
-        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
-
-        $res | Should Not Be $null
-        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $res.Name | Should Be $script:PrereleaseModuleName
-        $res.Version | Should Be "2.0.0"
-        $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
-    }
-
-    # (In place update): prerelease to prerelease, same root version.  (ex. 2.0.0-beta500 --> 2.0.0-gamma300)    
-    It "UpdateModuleSameVersionPrereleaseToPrereleaseInPlaceUpdate" {
-        Install-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
-        Update-Module  $script:PrereleaseModuleName -RequiredVersion "2.0.0-gamma300" -AllowPrerelease # Should update to latest prerelease version 2.0.0-gamma300
-
-        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
-
-        $res | Should Not Be $null
-        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $res.Name | Should Be $script:PrereleaseModuleName
-        $res.Version | Should Match "2.0.0-gamma300"
-        $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
-    }
-
-    # Updated from stable to prerelease in new version (ex. 2.0.0 --> 3.0.0-alpha9)
-    It "UpdateModuleFromReleaseToPrereleaseDifferentVersion" {
-        Install-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0" -Repository Local
-        Update-Module  $script:PrereleaseModuleName -AllowPrerelease # Should update to latest prerelease version 3.0.0-alpha9
-
-        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
-
-        $res | Should Not Be $null
-        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $res.Name | Should Be $script:PrereleaseModuleName
-        $res.Version | Should Match "3.0.0-alpha9"
-        $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
-    }
-
-    # prerelease --> prerelease  (different root version) (ex. 2.0.0-beta500 --> 3.0.0-alpha9)
-    It "UpdateModuleFromPrereleaseToPrereleaseDifferentRootVersion" {
-        Install-Module $script:PrereleaseModuleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository Local
-        Update-Module  $script:PrereleaseModuleName -AllowPrerelease # Should update to latest prerelease version 3.0.0-alpha9
-
-        $res = Get-InstalledModule -Name $script:PrereleaseModuleName
-
-        $res | Should Not Be $null
-        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $res.Name | Should Be $script:PrereleaseModuleName
-        $res.Version | Should Match "3.0.0-alpha9"
-        $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
-    }
-
-}
 
 
 Describe PowerShell.PSGet.UpdateModuleTests -Tags 'BVT','InnerLoop' {

@@ -37,7 +37,7 @@ function SuiteSetup {
         Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
     }
 
-    #GetAndSet-PSGetTestGalleryDetails -IsScriptSuite -SetPSGallery
+    GetAndSet-PSGetTestGalleryDetails -IsScriptSuite -SetPSGallery
 
     Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
     Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
@@ -69,79 +69,6 @@ function SuiteCleanup {
         Reset-PATHVariableForScriptsInstallLocation -Scope CurrentUser
     }
 }
-
-Describe UninstallScriptPrereleaseTests -Tags "TDD" {
-
-    BeforeAll {
-        SuiteSetup
-    }
-
-    AfterAll {
-        SuiteCleanup
-    }
-
-    AfterEach {
-        Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
-        Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
-
-        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
-    }
-
-    It UninstallPrereleaseScript {
-
-        $scriptName = "TestScript"
-
-        PowerShellGet\Install-Script -Name $scriptName -RequiredVersion "1.0.0" -Repository Local
-        $mod = Get-InstalledScript -Name $scriptName
-        $mod | Should Not Be $null
-        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $mod.Name | Should Be $scriptName
-        $mod.Version | Should Match "1.0.0"
-        $mod.AdditionalMetadata | Should Not Be $null
-        $mod.AdditionalMetadata.IsPrerelease | Should Match "false"
-
-        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion "2.0.0-alpha005" -AllowPrerelease
-        $mod = Get-InstalledScript -Name $scriptName -AllowPrerelease
-        $mod | Should Not Be $null
-        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $mod.Name | Should Be $scriptName
-        $mod.Version | Should Match "2.0.0-alpha005"
-        $mod.AdditionalMetadata | Should Not Be $null
-        $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
-
-        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion "3.0.0-beta2" -AllowPrerelease
-        $mod2 = Get-InstalledScript -Name $scriptName -AllowPrerelease
-        $mod2 | Should Not Be $null
-        $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        $mod2.Name | Should Be $scriptName
-        $mod2.Version | Should Match "3.0.0-beta2"
-        $mod2.AdditionalMetadata | Should Not Be $null
-        $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
-        
-        $scripts2 = PowerShellGet\Get-InstalledScript -Name $scriptName -AllowPrerelease
-
-        if($PSVersionTable.PSVersion -gt '5.0.0')
-        {
-            $scripts2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
-        }
-        else
-        {
-            $mod2.Name | Should Be $scriptName
-        }   
-
-
-        PowerShellGet\Uninstall-Script -Name $scriptName
-        Get-InstalledScript -Name $scriptName -AllowPrerelease -ErrorVariable ev #-ErrorAction SilentlyContinue
-
-        $ev.Count | Should Not Be 0
-        $ev[0].FullyQualifiedErrorId | Should Be 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
-    }
-}
-
-
-
-
 
 
 Describe PowerShell.PSGet.UninstallScriptTests -Tags 'BVT','InnerLoop' {

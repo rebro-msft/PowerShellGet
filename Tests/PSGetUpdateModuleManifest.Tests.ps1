@@ -266,7 +266,6 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         $Description = "$script:UpdateModuleManifestName module"
         $ProcessorArchitecture = $env:PROCESSOR_ARCHITECTURE
         $ReleaseNotes = "$script:UpdateModuleManifestName release notes"
-        $Prerelease = "-alpha001"
         $Tags = "PSGet","DSC"
         $ProjectUri = "http://$script:UpdateModuleManifestName.com/Project"
         $IconUri = "http://$script:UpdateModuleManifestName.com/Icon"
@@ -324,7 +323,6 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         $ParamsV5.Add("LicenseUri",$LicenseUri)
         $ParamsV5.Add("IconUri",$IconUri)
         $ParamsV5.Add("ReleaseNotes",$ReleaseNotes)
-        $ParamsV5.Add("Prerelease",$Prerelease)
 
         if(($PSVersionTable.PSVersion -ge '3.0.0') -or ($PSVersionTable.Version -le '4.0.0'))
         {
@@ -368,7 +366,6 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
             AssertEquals $newModuleInfo.LicenseUri $LicenseUri "LicenseUri should be $($LicenseUri)"
             AssertEquals $newModuleInfo.IconUri $IconUri "IconUri should be $($IconUri)"
             AssertEquals $newModuleInfo.ReleaseNotes $ReleaseNotes "ReleaseNotes should be $($ReleaseNotes)"
-            AssertEquals $newModuleInfo.PrivateData.PSData.Prerelease $Prerelease "Prerelease should be $($Prerelease)"
         }
        
         $newModuleInfo.HelpInfoUri | Should Be $HelpInfoURI
@@ -885,155 +882,5 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         Assert ($newModuleInfo.CompatiblePSEditions -contains $CompatiblePSEditions[0]) "CompatiblePSEditions should include $($CompatiblePSEditions[0])"
         Assert ($newModuleInfo.CompatiblePSEditions -contains $CompatiblePSEditions[1]) "CompatiblePSEditions should include $($CompatiblePSEditions[1])"
     } `
-    -Skip:$($PSVersionTable.PSVersion -lt '5.1.0')
-
-    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string with invalid characters
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -Prerelease '-alpha+001'
-    #
-    # Expected Result: Update-ModuleManifest should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It UpdateModuleManifestWithInvalidPrereleaseString {
-        $Prerelease = "-alpha+001" 
-        $Version = "3.2.1"
-
-        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
-
-        $ScriptBlock = {
-            New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    } 
-
-    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string with invalid characters
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -Prerelease '-alpha-beta.01'
-    #
-    # Expected Result: Update-ModuleManifest should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It UpdateModuleManifestWithInvalidPrereleaseString2 {
-        $Prerelease = "-alpha-beta.01" 
-        $Version = "3.2.1"
-
-        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
-
-        $ScriptBlock = {
-            New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    } 
-
-    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string with invalid characters
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -Prerelease '-alpha.1'
-    #
-    # Expected Result: Update-ModuleManifest should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It UpdateModuleManifestWithInvalidPrereleaseString3 {
-        $Prerelease = "-alpha.1" 
-        $Version = "3.2.1"
-
-        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
-
-        $ScriptBlock = {
-            New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    } 
-
-    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string with invalid characters
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -Prerelease '-error.0.0.0.1'
-    #
-    # Expected Result: Update-ModuleManifest should throw InvalidCharactersInPrereleaseString errorid.
-    #
-    It UpdateModuleManifestWithInvalidPrereleaseString4 {
-        $Prerelease = "-error.0.0.0.1" 
-        $Version = "3.2.1"
-
-        $expectedErrorMessage = $script:LocalizedData.InvalidCharactersInPrereleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
-
-        $ScriptBlock = {
-            New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    } 
-
-    # Purpose: Validate Update-ModuleManifest cmdlet throws warnings when passed a prerelease string when the version is too short.
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -ModuleVersion '3.2' -Prerelease '-alpha001'
-    #
-    # Expected Result: Update-ModuleManifest should throw IncorrectVersionPartsCountForPrereleaseStringUsage errorid.
-    #
-    It UpdateModuleManifestWithPrereleaseStringAndShortModuleVersion {
-        $Prerelease = "-alpha001" 
-        $Version = "3.2"
-
-        $expectedErrorMessage = $script:LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
-        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ModuleManifest"
-
-        $ScriptBlock = {
-            New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-        }
-
-        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
-    } 
-    
-    # Purpose: Validate Update-ModuleManifest cmdlet in PowerShell version greater than 5.0 when passed valid Prerelease string and module version.
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -ModuleVersion '3.2.1' -Prerelease 'alpha001'
-    #
-    # Expected Result: Update-ModuleManifest should update the Prerelease and Version fields in module manifest file.
-    #
-    It UpdateModuleManifestWithValidPrereleaseAndModuleVersion {
-        $Prerelease = "alpha001" 
-        $Version = "3.2.1"
-
-        New-ModuleManifest -path $script:testManifestPath 
-        Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-
-        $newModuleInfo = Test-ModuleManifest -Path $script:testManifestPath
-
-        $newModuleInfo.Version | Should -Match $Version
-        $newModuleInfo.PrivateData.PSData.Prerelease | Should -Match $Prerelease
-    } 
-
-    # Purpose: Validate Update-ModuleManifest cmdlet in PowerShell version greater than 5.0 when passed valid Prerelease string and module version.
-    #
-    # Action:
-    #      Update-ModuleManifest -Path [Path] -ModuleVersion '3.2.1' -Prerelease '-gamma001'
-    #
-    # Expected Result: Update-ModuleManifest should update the Prerelease and Version fields in module manifest file.
-    #
-    It UpdateModuleManifestWithValidPrereleaseAndModuleVersion2 {
-        $Prerelease = "-gamma001" 
-        $Version = "3.2.1"
-
-        New-ModuleManifest -path $script:testManifestPath 
-        Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
-
-        $newModuleInfo = Test-ModuleManifest -Path $script:testManifestPath
-
-        $newModuleInfo.Version | Should -Match $Version
-        $newModuleInfo.PrivateData.PSData.Prerelease | Should -Match $Prerelease
-    } 
+    -Skip:$($PSVersionTable.PSVersion -lt '5.1.0') 
 }
