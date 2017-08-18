@@ -128,13 +128,6 @@ Describe "Update Existing Script Info" -tag CI {
         SuiteCleanup
     }
 
-    BeforeEach {
-        $scriptName = 'Fabrikam-ServerScript'
-        Install-Script $scriptName
-		$Script = Get-InstalledScript -Name $scriptName
-		$script:ScriptFilePath = Join-Path -Path $script.InstalledLocation -ChildPath "$scriptName.ps1"
-    }
-
     AfterEach {
         Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
         Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force

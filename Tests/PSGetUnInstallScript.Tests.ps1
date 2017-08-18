@@ -20,8 +20,6 @@ function SuiteSetup {
 
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:TempPath = Get-TempPath
-    $script:ProgramFilesScriptsPath = Get-AllUsersScriptsPath 
-    $script:MyDocumentsScriptsPath = Get-CurrentUserScriptsPath 
 
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
@@ -69,7 +67,6 @@ function SuiteCleanup {
         Reset-PATHVariableForScriptsInstallLocation -Scope CurrentUser
     }
 }
-
 
 Describe PowerShell.PSGet.UninstallScriptTests -Tags 'BVT','InnerLoop' {
 

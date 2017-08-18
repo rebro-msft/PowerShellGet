@@ -26,7 +26,7 @@ function SuiteSetup {
     Install-NuGetBinaries
 
     $psgetModuleInfo = Import-Module PowerShellGet -Global -Force -Passthru
-    Import-LocalizedData LocalizedData -filename PSGet.Resource.psd1 -BaseDirectory $psgetModuleInfo.ModuleBase
+    Import-LocalizedData script:LocalizedData -filename PSGet.Resource.psd1 -BaseDirectory $psgetModuleInfo.ModuleBase
 
     $script:moduleSourcesFilePath= Join-Path $script:PSGetLocalAppDataPath "PSRepositories.xml"
     $script:moduleSourcesBackupFilePath = Join-Path $script:PSGetLocalAppDataPath "PSRepositories.xml_$(get-random)_backup"
@@ -76,9 +76,6 @@ function SuiteCleanup {
         }
     }
 }
-
-
-
 
 Describe PowerShell.PSGet.UpdateModuleTests -Tags 'BVT','InnerLoop' {
 

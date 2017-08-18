@@ -1177,7 +1177,9 @@ function Publish-Module
             }
 
             # Validate Prerelease string (logic not yet in Test-ModuleManifest)
-            if ($moduleInfo.PrivateData -and $moduleInfo.PrivateData["PSData"] -and $moduleInfo.PrivateData.PSData["Prerelease"])
+            if ($moduleInfo.PrivateData -and 
+                $moduleInfo.PrivateData["PSData"] -and 
+                $moduleInfo.PrivateData.PSData["Prerelease"])
             {
                 $prereleaseValidationResult = Validate-PrereleaseString -Version $moduleInfo.Version `
                                                                         -Prerelease $moduleInfo.PrivateData.PSData.Prerelease `

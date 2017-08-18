@@ -18,8 +18,6 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         Import-Module "$PSScriptRoot\Asserts.psm1" -WarningAction SilentlyContinue
         $script:TempPath = Get-TempPath
         $script:psgetModuleInfo = Import-Module PowerShellGet -Global -Force -Passthru
-
-        Import-LocalizedData script:LocalizedData -filename PSGet.Resource.psd1 -BaseDirectory $psgetModuleInfo.ModuleBase
     }
 
     BeforeEach {
@@ -124,6 +122,8 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
 
         AssertEquals $ModuleManifestHashTable.DefaultCommandPrefix $DefaultCommandPrefix "DefaultCommandPrefix should be $($DefaultCommandPrefix)"
     }
+
+
 
     # Purpose: Update a module manifest with same parameters
     #
@@ -262,7 +262,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
 
         Set-Content "$script:UpdateModuleManifestBase\$script:UpdateModuleManifestName.psm1" -Value "function Get-$script:UpdateModuleManifestName { Get-Date }"
         $Guid =  [System.Guid]::Newguid().ToString()
-        $Version = "2.0.0"
+        $Version = "2.0"
         $Description = "$script:UpdateModuleManifestName module"
         $ProcessorArchitecture = $env:PROCESSOR_ARCHITECTURE
         $ReleaseNotes = "$script:UpdateModuleManifestName release notes"
@@ -341,7 +341,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         AssertEquals $newModuleInfo.CompanyName $CompanyName "Company name should be $($CompanyName)"
         AssertEquals $newModuleInfo.CopyRight $CopyRight "Copyright should be $($CopyRight)"
         AssertEquals $newModuleInfo.RootModule $RootModule "RootModule should be $($RootModule)"
-        AssertEquals $newModuleInfo.Version $Version "Module version should be $($Version)"
+        AssertEquals $newModuleInfo.Version.Major $Version "Module version should be $($Version)"
         AssertEquals $newModuleInfo.Description $Description "Description should be $($Description)"
         AssertEquals $newModuleInfo.ProcessorArchitecture $ProcessorArchitecture "Processor architecture name should be $($ProcessorArchitecture)"
         AssertEquals $newModuleInfo.ClrVersion $ClrVersion "ClrVersion should be $($ClrVersion)"
@@ -516,6 +516,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
                                           -ExternalModuleDependencies $ExternalModuleDependences -Confirm:$false } `
                                           -expectedFullyQualifiedErrorId "InvalidExternalModuleDependencies,Update-ModuleManifest"
     } 
+
 
     # Purpose: Validate Update-ModuleManifest will throw errors when invalid module manifest path is provided
     #
