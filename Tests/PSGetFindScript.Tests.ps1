@@ -51,7 +51,6 @@ function SuiteCleanup {
     $null = Import-PackageProvider -Name PowerShellGet -Force
 }
 
-
 Describe PowerShell.PSGet.FindScriptTests -Tags 'BVT','InnerLoop' {
 
     BeforeAll {

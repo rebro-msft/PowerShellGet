@@ -742,6 +742,8 @@ Describe PowerShell.PSGet.PublishModuleTests -Tags 'BVT','InnerLoop' {
                            -Copyright $CopyRight `
                            -Tags $Tags `
                            -ReleaseNotes $ReleaseNotes
+
+
         Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey `
                        -Repository "PSGallery" `
                        -ProjectUri $ProjectUri -LicenseUri $LicenseUri -IconUri $IconUri `
@@ -1038,7 +1040,6 @@ Describe PowerShell.PSGet.PublishModuleTests.P1 -Tags 'P1','OuterLoop' {
         RemoveItem "$script:PublishModuleBase\*"
     }
 
-
     It "PublishModuleWithForceAndExistingVersion" {
         $version = "1.0"
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
@@ -1085,7 +1086,7 @@ Describe PowerShell.PSGet.PublishModuleTests.P1 -Tags 'P1','OuterLoop' {
 
     # Purpose: PublishModuleWithFalseConfirm
     #
-    # Action: Publish-Module -Path <ContosoPublishModulePath> -NuGetApiKey <apikey> -Confirm:$false
+    # Action: Publish-Module -Path <ContosoPublishModulePath> -NeGetApiKey <apikey> -Confirm:$false
     #
     # Expected Result: Module should be published
     #
@@ -1787,10 +1788,3 @@ Describe PowerShell.PSGet.PublishModuleTests.P2 -Tags 'P2','OuterLoop' {
         }
     }
 }
-
-
-
-
-
-
-

@@ -59,7 +59,6 @@ function SuiteCleanup {
     $null = Import-PackageProvider -Name PowerShellGet -Force
 }
 
-
 Describe 'PowerShell.PSGet.UnInstallModuleTests' -Tags 'BVT','InnerLoop' {
 
     BeforeAll {

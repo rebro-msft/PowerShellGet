@@ -1,13 +1,13 @@
 ﻿<#####################################################################################
  # File: PSGetUpdateScriptInfo.Tests.ps1
- # Tests for PSGet ScriptFileInfo functionality
+ # Tests for PSGet ScriptInfo functionality
  #
  # Copyright (c) Microsoft Corporation, 2015
  #####################################################################################>
 
 <#
    Name: PowerShell.PSGet.UpdateScriptInfo.Tests
-   Description: Tests for Update-ScriptFileInfo cmdlet functionality
+   Description: Tests for Update-ScriptInfo cmdlet functionality
 
    Local PSGet Test Gallery (ex: http://localhost:8765/packages) is pre-populated with static scripts:
         Fabrikam-ClientScript: versions 1.0, 1.5, 2.0, 2.5
@@ -117,7 +117,6 @@ $ScriptFileInfoProperties = @{
 	ReleaseNotes='Test Script version 1.2.3.4'
 }
 
-
 Describe "Update Existing Script Info" -tag CI {
 
     BeforeAll {
@@ -133,21 +132,24 @@ Describe "Update Existing Script Info" -tag CI {
         Get-InstalledScript -Name Fabrikam-ClientScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
     }
 
-    # Purpose: Update a script file info with all parameters
+    # Purpose: UpdateScriptWithConfirmAndNoToPrompt
     #
-    # Action: Update-ScriptFileInfo [path] -Version -Author -Guid -Description ...
+    # Action: Update-Script Fabrikam-ServerScript -Confirm
     #
-    # Expected Result: Script should update all fields.
+    # Expected Result: script should not be updated after confirming NO
     #
-    It "UpdateScriptFileWithAllFields" {
-        Update-ScriptFileInfo -Path $script:ScriptFilePath @ScriptFileInfoProperties
+ 
+    It "UpdateScriptFileInfo" {
+        $scriptName = 'Fabrikam-ServerScript'
+        Install-Script $scriptName -Scope AllUsers
+		$Script = Get-InstalledScript -Name $scriptName
+		$ScriptFilePath = Join-Path -Path $script.InstalledLocation -ChildPath "$scriptName.ps1"
 
-		$ScriptFileInfo = Test-ScriptFileInfo -Path $script:ScriptFilePath
-
+        Update-ScriptFileInfo -Path $ScriptFilePath @ScriptFileInfoProperties
+		$ScriptFileInfo = Test-ScriptFileInfo -Path $ScriptFilePath
 		foreach ($Prop in $ScriptFileInfoProperties.Keys)
 		{
             $ScriptFileInfo.$Prop | Should be $ScriptFileInfoProperties[$Prop]
 		}
     }
-
 }

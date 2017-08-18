@@ -354,7 +354,6 @@ Describe PowerShell.PSGet.PublishScriptTests -Tags 'BVT','InnerLoop' {
         AssertEqualsCaseInsensitive $psgetItemInfo.LicenseUri $LicenseUri "LicenseUri should be same as the published one"
     }
 
-
     # Purpose: Validate Test-ScriptFileInfo cmdlet with all properties
     #
     # Action: Create a script file with all the proproperties and run Test-ScriptFileInfo
@@ -1363,8 +1362,6 @@ Foo
                                           -scriptblock { Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Force -Description $Description}
     }
 
-    
-
     # Purpose: Validate that New-ScriptFileInfo fails when LicenseUri is invalid
     #
     # Action: Create a script file with invalid uri
@@ -1453,6 +1450,33 @@ Foo
                                                                         -Version $script:PublishScriptVersion `
                                                                         -Author Manikyam.Bavandla@microsoft.com `
                                                                         -Description 'Test script description #> goes here ' `
+                                                                        -Force
+                                                        }
+    }
+
+    # Purpose: Validate that New-ScriptFileInfo fails when a metadata value contains '#>' and/or '<#'
+    #
+    # Action: Create a script file with invalid Author value
+    #
+    # Expected Result: New-ScriptFileInfo operation should fail with an error
+    #
+    It NewScriptFileInfoWithInvalidAuthor {
+
+        if($PSVersionTable.PSVersion -eq '3.0.0')
+        {
+            $ErrorId = 'InvalidParameterValue'
+        }
+        else
+        {
+            $ErrorId = 'InvalidParameterValue,Validate-ScriptFileInfoParameters'
+        }
+
+        AssertFullyQualifiedErrorIdEquals -expectedFullyQualifiedErrorId $ErrorId `
+                                          -scriptblock {
+                                                         New-ScriptFileInfo -Path $script:PublishScriptFilePath `
+                                                                        -Version $script:PublishScriptVersion `
+                                                                        -Author Manikyam.Bavandla@microso<#ft.com `
+                                                                        -Description 'Test script description goes here ' `
                                                                         -Force
                                                         }
     }

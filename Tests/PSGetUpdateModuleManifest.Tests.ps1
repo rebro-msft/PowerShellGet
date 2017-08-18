@@ -417,6 +417,8 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         AssertEquals $newModuleInfo.PrivateData.ExtraProperties $ExtraProperties "ExtraProperties should include $($ExtraProperties)"
     } 
 
+
+
     # Purpose: Validate Update-ModuleManifest cmdlet with ExternalModuleDependencies and PackageManagementProviders properties
     #
     # Action:
@@ -442,6 +444,8 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         AssertEquals $newModuleInfo.PrivateData.PSData.ExternalModuleDependencies $ExternalModuleDependencies "ExternalModuleDependencies should include $($ExternalModuleDependencies)"
     } 
 
+
+
     # Purpose: Validate Update-ModuleManifest cmdlet throw warnings when ExportedDSCResources is specified for PowerShell version lower than 5.0
     #
     # Action:
@@ -449,7 +453,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
     #
     # Expected Result: Update-ModuleManifest should throw warnings about DscResourcesToExport not supported
     #
-    It UpdateModuleManifesWithExportedDSCResourcesInLowerPowerShellVersion {
+     It UpdateModuleManifesWithExportedDSCResourcesInLowerPowerShellVersion {
         #When running on lower versin of PowerShell
         if($PSVersionTable.PSVersion -lt '5.0.0')
         {
@@ -475,6 +479,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
                                               -expectedFullyQualifiedErrorId "ExportedDscResourcesNotSupported,Update-ModuleManifest"
         }
     } 
+
 
     # Purpose: Validate Update-ModuleManifest cmdlet in PowerShell version greater than 5.0
     #
@@ -532,6 +537,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
                                           -expectedFullyQualifiedErrorId "InvalidModuleManifestFilePath,Update-ModuleManifest"
     } 
     
+
     # Purpose: Validate Update-ModuleManifest will throw errors when there are paths defined in FilePath that are not in the module base
     #
     # Action:
@@ -557,6 +563,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         
     } 
 
+
     # Purpose: Validate Update-ModuleManifest will throw errors when there are paths defined in FilePath that are not in the module base
     #
     # Action:
@@ -570,6 +577,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         AssertFullyQualifiedErrorIdEquals -scriptblock {Update-ModuleManifest -Path $script:testManifestPath -FileList $FilePath} `
                                           -expectedFullyQualifiedErrorId "FilePathInFileListNotWithinModuleBase,Update-ModuleManifest"
     } 
+
 
     # Purpose: Validate Update-ModuleManifest will throw errors if some invalid properties were provided and 
     # New-ModuleManifest failed
@@ -605,6 +613,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
                                           -expectedFullyQualifiedErrorId "InvalidPackageManagementProviders,Update-ModuleManifest"
     } 
 
+
     # Purpose: Validate Update-ModuleManifest will throw errors if the original manifest fail the Test-ModuleManifest
     #
     # Action:
@@ -619,6 +628,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
                                           -expectedFullyQualifiedErrorId "InvalidModuleManifestFile,Update-ModuleManifest"
     } 
 
+   
     # Purpose: Validate Update-ModuleManifest will not change the contents of the manifest when -WhatIf is specified
     #
     # Action:
@@ -664,6 +674,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
     } `
     -Skip:$(($PSCulture -ne 'en-US') -or ($PSEdition -eq 'Core'))
 
+
     # Purpose: Validate Update-ModuleManifest will update the content if -Confirm:$false is used
     #
     # Action: Update-ModuleManifest -Path [Path] -Author "NewAuthor" -Confirm:$false
@@ -679,6 +690,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         $newModuleInfo = Test-ModuleManifest -Path $script:testManifestPath
         AssertEquals $newModuleInfo.Author $Author "Author name should be $($Author)"
     }
+    
     
     # Purpose: Validate that Update-ModuleManifest will update the content when confirmed "yes" by user
     #
@@ -837,7 +849,7 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
     #
     # Expected Result: Update-ModuleManifest should throw warnings about CompatiblePSEditions not supported
     #
-    It UpdateModuleManifesWithCompatiblePSEditionsInLowerPowerShellVersion {
+     It UpdateModuleManifesWithCompatiblePSEditionsInLowerPowerShellVersion {
         $CompatiblePSEditions = @('Desktop', 'Core')
         New-ModuleManifest -path $script:testManifestPath
 
@@ -883,5 +895,5 @@ Describe PowerShell.PSGet.UpdateModuleManifest -Tags 'BVT','InnerLoop' {
         Assert ($newModuleInfo.CompatiblePSEditions -contains $CompatiblePSEditions[0]) "CompatiblePSEditions should include $($CompatiblePSEditions[0])"
         Assert ($newModuleInfo.CompatiblePSEditions -contains $CompatiblePSEditions[1]) "CompatiblePSEditions should include $($CompatiblePSEditions[1])"
     } `
-    -Skip:$($PSVersionTable.PSVersion -lt '5.1.0') 
+    -Skip:$($PSVersionTable.PSVersion -lt '5.1.0')
 }

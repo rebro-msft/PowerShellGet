@@ -23,8 +23,6 @@ function SuiteSetup {
     $script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
     $script:TempPath = Get-TempPath
     $null = New-Item -Path $script:MyDocumentsModulesPath -ItemType Directory -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
-    
-
     #Bootstrap NuGet binaries
     Install-NuGetBinaries
 
@@ -83,8 +81,6 @@ function SuiteCleanup {
         }
     }
 }
-
-
 
 Describe PowerShell.PSGet.InstallModuleTests -Tags 'BVT','InnerLoop' {
 

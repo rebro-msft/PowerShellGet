@@ -98,7 +98,6 @@ function SuiteCleanup {
     }
 }
 
-
 Describe PowerShell.PSGet.UpdateScriptTests -Tags 'BVT','InnerLoop' {
 
     BeforeAll {
