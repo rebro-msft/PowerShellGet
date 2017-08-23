@@ -1502,8 +1502,20 @@ function Find-Module
 		PackageManagement\Find-Package @PSBoundParameters | Microsoft.PowerShell.Core\ForEach-Object {
 
             $psgetItemInfo = New-PSGetItemInfo -SoftwareIdentity $_ -Type $script:PSArtifactTypeModule 
-                                                        
-            $psgetItemInfo
+
+            if ($AllVersions -and -not $AllowPrerelease)
+            {
+                # If AllVersions is specified but not AllowPrerelease, we should only return stable release versions.
+                # PackageManagement returns ALL versions (including prerelease) when AllVersions is specified, regardless of the value of AllowPrerelease.
+                # Filtering results returned from PackageManagement based on flags.
+                if ($psgetItemInfo.AdditionalMetadata -and $psgetItemInfo.AdditionalMetadata.IsPrerelease -eq $false)
+                {
+                    $psgetItemInfo
+                }
+            }
+            else {
+                $psgetItemInfo
+            }
 
             if ($psgetItemInfo -and 
                 $isRepositoryNullOrPSGallerySpecified -and 
@@ -3012,7 +3024,7 @@ function Publish-Script
                 {
                     # Prerelease strings will not both be null, otherwise would have terminated already above
 
-                    if (-not $galleryScriptPrerelease -and $toPublishScriptPrerelease)
+                    if (-not $Force -and (-not $galleryScriptPrerelease -and $toPublishScriptPrerelease))
                     {
                         # User is trying to publish a new Prerelease version AFTER publishing the stable version.
                         $message = $LocalizedData.ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString -f ($scriptName,
@@ -3034,7 +3046,7 @@ function Publish-Script
                     {
                         # if ($galleryScriptPrerelease -eq $toPublishScriptPrerelease) --> not reachable, would have terminated already above.
                         
-                        if ($galleryScriptPrerelease -gt $toPublishScriptPrerelease)
+                        if (-not $Force -and ($galleryScriptPrerelease -gt $toPublishScriptPrerelease))
                         {
                             # User is trying to publish a lower prerelease version.
                             $message = $LocalizedData.ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString -f ($scriptName,
@@ -3053,7 +3065,7 @@ function Publish-Script
                         # User is trying to publish a newer prerelease version (allowed)
                     }
                 }
-                elseif ($galleryScriptVer -gt $toPublishScriptVer)
+                elseif (-not $Force -and ($galleryScriptVer -gt $toPublishScriptVer))
                 {
                     $message = $LocalizedData.ScriptVersionShouldBeGreaterThanGalleryVersion -f ($scriptName,
                                                                                                      $PSScriptInfo.Version,
@@ -3264,7 +3276,19 @@ function Find-Script
         PackageManagement\Find-Package @PSBoundParameters | Microsoft.PowerShell.Core\ForEach-Object {
                 $psgetItemInfo = New-PSGetItemInfo -SoftwareIdentity $_ -Type $script:PSArtifactTypeScript 
                                                         
-                $psgetItemInfo
+                if ($AllVersions -and -not $AllowPrerelease)
+                {
+                    # If AllVersions is specified but not AllowPrerelease, we should only return stable release versions.
+                    # PackageManagement returns ALL versions (including prerelease) when AllVersions is specified, regardless of the value of AllowPrerelease.
+                    # Filtering results returned from PackageManagement based on flags.
+                    if ($psgetItemInfo.AdditionalMetadata -and $psgetItemInfo.AdditionalMetadata.IsPrerelease -eq $false)
+                    {
+                        $psgetItemInfo
+                    }
+                }
+                else {
+                    $psgetItemInfo
+                }
 
                 if ($psgetItemInfo -and 
                     $isRepositoryNullOrPSGallerySpecified -and 
@@ -10994,17 +11018,53 @@ function Install-PackageUtility
                     }
                     else
                     {
-                        if($InstalledModuleInfo.Version -lt $version)
+                        $installedModuleVersion = $InstalledModuleInfo.Version.ToString()
+                        if ((Get-Member -InputObject $InstalledModuleInfo -Name PrivateData -ErrorAction SilentlyContinue) -and `
+                            ($InstalledModuleInfo.PrivateData.ContainsKey('PSData')) -and `
+                            ($InstalledModuleInfo.PrivateData.PSData.ContainsKey('Prerelease')))
+                        { 
+                            $installedModulePrerelease = $InstalledModuleInfo.PrivateData.PSData.Prerelease 
+                            if ($installedModulePrerelease -and $installedModulePrerelease.StartsWith('-'))
+                            {
+                                $installedModulePrerelease = $installedModulePrerelease -split '-',2 | Select-Object -Skip 1
+                            }
+                        } 
+                        else 
+                        { 
+                            $installedModulePrerelease = $null 
+                        }
+
+                        if ($version -contains '-')
+                        {
+                            $galleryModuleVersion,$galleryModulePrerelease = $version -split '-',2
+                        }
+                        else 
+                        {
+                            $galleryModuleVersion = $version
+                            $galleryModulePrerelease = $null
+                        }
+
+                        # null null         --> equal                                       no update
+                        # null value        --> stable --> prerelease                       no update
+                        # value null        --> prerelease --> stable                       update
+                        # value = value     --> equal                                       no update
+                        # value > value     --> newer prerelease --> older prerelease       no update
+                        # value < value     --> older prerelease --> newer prerelease       update   
+
+                        if ( ($installedModuleVersion -lt $galleryModuleVersion) -or `
+                             ( ($installedModuleVersion -eq $galleryModuleVersion) -and `
+                               ( ($installedModulePrerelease -and -not $galleryModulePrerelease) -or `
+                                 ($installedModulePrerelease -lt $galleryModulePrerelease) ) ) )
                         {
                             $message = $LocalizedData.FoundModuleUpdate -f ($InstalledModuleInfo.Name, $version)
-                            Write-Verbose $message    
+                            Write-Verbose $message
                         }
                         else
                         {
                             $message = $LocalizedData.NoUpdateAvailable -f ($InstalledModuleInfo.Name)
                             Write-Verbose $message
                             return
-                        }
+                        }                    
                     }
                 }
             }
@@ -11037,12 +11097,45 @@ function Install-PackageUtility
                 }
                 else
                 {
-                    if($InstalledScriptInfo.Version -lt $version)
+                    if ($InstalledScriptInfo.Version -match '-')
+                    {
+                        $installedScriptVersionPart,$installedScriptPrereleasePart = $InstalledScriptInfo.Version -split '-',2
+                    }
+                    else 
+                    {
+                        $installedScriptVersionPart = $InstalledScriptInfo.Version
+                        $installedScriptPrereleasePart = $null
+                    }
+
+                    if ($version -match '-')
+                    {
+                        $galleryScriptVersionPart,$galleryScriptPrereleasePart = $version -split '-',2
+                    }
+                    else 
+                    {
+                        $galleryScriptVersionPart = $version
+                        $galleryScriptPrereleasePart = $null
+                    }
+
+                    Write-Debug "Installed script info:  $installedScriptVersionPart $installedScriptPrereleasePart"
+                    Write-Debug "Gallery script info:  $galleryScriptVersionPart $galleryScriptPrereleasePart"
+
+                    # null null         --> equal                                       no update
+                    # null value        --> stable --> prerelease                       no update
+                    # value null        --> prerelease --> stable                       update
+                    # value = value     --> equal                                       no update
+                    # value > value     --> newer prerelease --> older prerelease       no update
+                    # value < value     --> older prerelease --> newer prerelease       update   
+
+                    if ( ($installedScriptVersionPart -lt $galleryScriptVersionPart) -or `
+                         ( ($installedScriptVersionPart -eq $galleryScriptVersionPart) -and `
+                           ( ($installedScriptPrereleasePart -and -not $galleryScriptPrereleasePart) -or `
+                             ($installedScriptPrereleasePart -lt $galleryScriptPrereleasePart) ) ) )
                     {
                         $message = $LocalizedData.FoundScriptUpdate -f ($InstalledScriptInfo.Name, $version)
                         Write-Verbose $message
                     }
-                    else
+                    else 
                     {
                         $message = $LocalizedData.NoScriptUpdateAvailable -f ($InstalledScriptInfo.Name)
                         Write-Verbose $message
@@ -12923,13 +13016,64 @@ function Test-ModuleInstalled
         [string]
         $RequiredVersion
     )
-
     # Check if module is already installed
     $availableModule = Microsoft.PowerShell.Core\Get-Module -ListAvailable -Name $Name -Verbose:$false | 
-                           Microsoft.PowerShell.Core\Where-Object {-not (Test-ModuleSxSVersionSupport) -or -not $RequiredVersion -or ($RequiredVersion -eq $_.Version.ToString())} | 
-                               Microsoft.PowerShell.Utility\Select-Object -Unique -First 1 -ErrorAction Ignore
+                           Microsoft.PowerShell.Core\Where-Object {
+                               -not (Test-ModuleSxSVersionSupport) `
+                               -or -not $RequiredVersion `
+                               -or ($RequiredVersion -eq $_.Version.ToString()) `
+                               -or (Test-InstalledModuleVersionPrereleaseFields -InstalledModule $_ -RequiredVersion $RequiredVersion)
+                            } | Microsoft.PowerShell.Utility\Select-Object -Unique -First 1 -ErrorAction Ignore
 
     return $availableModule
+}
+
+function Test-InstalledModuleVersionPrereleaseFields 
+{
+    Param(
+        [PSModuleInfo]
+        $InstalledModule,
+
+        [Parameter()]
+        [string]
+        $RequiredVersion
+    )
+
+    # compare version and prerelease fields
+    if ($RequiredVersion -contains '-')
+    {
+        $requiredVersionPart,$requiredPrereleasePart = $RequiredVersion -split '-',2
+    }
+    else 
+    {
+        $requiredVersionPart = $RequiredVersion
+        $requiredPrereleasePart = $null
+    }
+
+    $installedModuleVersionPart = $InstalledModule.Version.ToString()
+    if ((Get-Member -InputObject $InstalledModule -Name PrivateData -ErrorAction SilentlyContinue) -and `
+        ($InstalledModule.PrivateData.ContainsKey('PSData')) -and `
+        ($InstalledModule.PrivateData.PSData.ContainsKey('Prerelease')))
+    {
+        $installedModulePrereleasePart = $InstalledModule.PrivateData.PSData.Prerelease
+        if ($installedModulePrereleasePart.StartsWith('-'))
+        {
+            $installedModulePrereleasePart = $installedModulePrereleasePart -split '-',2 | Select-Object -Skip 1
+        }
+    }
+    else 
+    {
+        $installedModulePrereleasePart = $null
+    }
+
+    if (($requiredVersionPart -eq $installedModuleVersionPart) -and ($requiredPrereleasePart -eq $installedModulePrereleasePart))
+    {
+        return $true
+    }
+    else 
+    {
+        return $false
+    }
 }
 
 function Test-ScriptInstalled

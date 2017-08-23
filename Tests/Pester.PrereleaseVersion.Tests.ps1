@@ -843,10 +843,10 @@ Describe "--- Publish-Module ---" -Tags "" {
         Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
 
 
-        Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ErrorVariable ev
+        Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ErrorVariable ev -ErrorAction SilentlyContinue
 
         $ev.Count | Should Not Be 0
-        $ev[0].FullyQualifiedErrorId | Should Be "Modules_InvalidManifest,Microsoft.PowerShell.Commands.TestModuleManifestCommand"
+        $ev[1].FullyQualifiedErrorId | Should Be "Modules_InvalidManifest,Microsoft.PowerShell.Commands.TestModuleManifestCommand"
     }
 
     It "PublishModuleWithValidPrereleaseAndVersion" {
@@ -939,6 +939,52 @@ Describe "--- Publish-Module ---" -Tags "" {
         $psgetItemInfo.Version | Should Match $($version + $preRelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
+    }
+
+    It "PublishModuleWithEmptyPrereleaseFieldShouldSucceed" {
+        
+        # Create manifest without using Update-ModuleManifest
+        $validPreReleaseModuleManifestContent = @"
+@{
+    # Version number of this module.
+    ModuleVersion = '1.0.0'
+
+    # ID used to uniquely identify this module
+    GUID = 'e359354f-93ff-449e-8ae1-3173245215bd'
+
+    # Author of this module
+    Author = 'rebro'
+
+    # Company or vendor of this module
+    CompanyName = 'Unknown'
+
+    # Copyright statement for this module
+    Copyright = '(c) 2017 rebro. All rights reserved.'
+
+    # Description of the functionality provided by this module
+    Description = 'Valid PreRelease module manifest'
+
+    # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
+    PrivateData = @{
+        PSData = @{
+            # Prerelease string, part of Version
+            PreRelease = ''
+        } # End of PSData hashtable
+    } # End of PrivateData hashtable
+}
+"@
+                Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPreReleaseModuleManifestContent
+        
+                $scriptBlock = {
+                    Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
+                }
+                $scriptBlock | Should Not Throw
+        
+                $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion "1.0.0" -AllowPrerelease
+                $psgetItemInfo.Name | Should Be $script:PublishModuleName
+                $psgetItemInfo.Version | Should Match $version
+                $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+                $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 }
 
@@ -1814,10 +1860,9 @@ Describe "--- Uninstall-Module ---" -Tags "" {
         }   
 
         PowerShellGet\Uninstall-Module -Name $moduleName -AllVersions
-        Get-InstalledModule -Name $moduleName -AllVersions -ErrorVariable ev #-ErrorAction SilentlyContinue
+        $installedModules = Get-InstalledModule -Name $moduleName -AllVersions -ErrorAction SilentlyContinue
 
-        $ev.Count | Should Not Be 0
-        $ev[0].FullyQualifiedErrorId | Should Be 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
+        $installedModules | Should Be $null
     }
 }
 
@@ -2417,14 +2462,12 @@ Describe "--- Publish-Script ---" -Tags "" {
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
 
-
-        # Publish second version (cannot use Update-ScriptFileInfo because is invalid)
         $version = "1.0.0-alpha001"
         Update-ScriptFileInfo -Path $script:PublishScriptFilePath -Version $version
         $scriptBlock = {
             Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
         }
-        $scriptBlock | Should -Throw -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion,Publish-Script"
+        $scriptBlock | Should -Throw -ErrorId "ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString,Publish-Script"
     }
     
     It "PublishScriptSameVersionSamePreRelease" {
@@ -2529,7 +2572,7 @@ Describe "--- Publish-Script ---" -Tags "" {
         $scriptBlock = {
             Publish-Script -Path $script:PublishScriptFilePath -NuGetApiKey $script:ApiKey
         }
-        $scriptBlock | Should -Throw -ErrorId "ScriptVersionShouldBeGreaterThanGalleryVersion,Publish-Script"
+        $scriptBlock | Should -Throw -ErrorId "ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString,Publish-Script"
     }
 
     It "PublishScriptWithInvalidPrereleaseString" {
@@ -3095,8 +3138,38 @@ Describe "--- Update-Script ---" -Tags "" {
         PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
     } 
 
-    # prerelease --> stable
-    It "UpdateScriptWithoutAllowPrereleaseUpdatesToStableVersion" {
+    # Updated to latest release version by default: When release version is installed (ex. 1.0.0 --> 2.0.0)
+    It "UpdateScriptFromReleaseToReleaseVersionByDefault" {
+        Install-Script $PrereleaseTestScript -RequiredVersion 1.0.0 -Repository $TestRepositoryName
+        Update-Script $PrereleaseTestScript # Should update to latest stable version 2.0.0
+
+        $res = Get-InstalledScript -Name $PrereleaseTestScript
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $PrereleaseTestScript
+        $res.Version | Should Match "2.0.0"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+
+    # Updated to latest release version by default: When prerelease version is installed (ex. 1.0.0-alpha001 --> 2.0.0)
+    It "UpdateScriptFromPrereleaseToReleaseVersionByDefault" {
+        Install-Script $PrereleaseTestScript -RequiredVersion "1.0.0-alpha001" -AllowPrerelease -Repository $TestRepositoryName
+        Update-Script $PrereleaseTestScript # Should update to latest stable version 2.0.0
+
+        $res = Get-InstalledScript -Name $PrereleaseTestScript
+
+        $res | Should Not Be $null
+        $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $res.Name | Should Be $PrereleaseTestScript
+        $res.Version | Should Match "2.0.0"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+    }
+    
+    # (In place update): prerelease to release, same root version.  (ex. 2.0.0-alpha005 --> 2.0.0)
+    It "UpdateScriptSameVersionPrereleaseToReleaseInPlaceUpdate" {
         Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
         Update-Script $PrereleaseTestScript # Should update to latest stable version 2.0.0
 
@@ -3110,23 +3183,23 @@ Describe "--- Update-Script ---" -Tags "" {
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 
-    # stable --> stable
-    It "UpdatePrereleaseScriptFromStableToStable" {
-        Install-Script $PrereleaseTestScript -RequiredVersion 1.0.0 -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript -RequiredVersion 2.0.0
+    # (In place update): prerelease to prerelease, same root version.  (ex. 2.0.0-alpha005 --> 2.0.0-beta1234)    
+    It "UpdateScriptSameVersionPrereleaseToPrereleaseInPlaceUpdate" {
+        Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
+        Update-Script $PrereleaseTestScript -RequiredVersion "2.0.0-beta1234" -AllowPrerelease
 
-        $res = Get-InstalledScript -Name $PrereleaseTestScript
+        $res = Get-InstalledScript -Name $PrereleaseTestScript -AllowPrerelease
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
+        $res.Version | Should Match "2.0.0-beta1234"
         $res.AdditionalMetadata | Should Not Be $null
-        $res.AdditionalMetadata.IsPrerelease | Should Match "false"
+        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # stable --> prerelease
-    It "UpdatePrereleaseScriptFromStableToPrerelease" {
+    # Updated from stable to prerelease in new version (ex. 1.0.0 --> 3.0.0-beta2)
+    It "UpdateScriptFromReleaseToPrereleaseDifferentVersion" {
         Install-Script $PrereleaseTestScript -RequiredVersion "1.0.0" -Repository $TestRepositoryName
         Update-Script $PrereleaseTestScript -AllowPrerelease # Should update to latest prerelease version 3.0.0-beta2
 
@@ -3140,9 +3213,9 @@ Describe "--- Update-Script ---" -Tags "" {
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # prerelease --> prerelease
-    It "UpdatePrereleaseScriptFromPrereleaseToPrerelease" {
-        Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
+    # prerelease --> prerelease  (different root version) (ex. 2.0.0-beta1234 --> 3.0.0-beta2)
+    It "UpdateScriptFromPrereleaseToPrereleaseDifferentRootVersion" {
+        Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-beta1234" -AllowPrerelease -Repository $TestRepositoryName
         Update-Script $PrereleaseTestScript -RequiredVersion "3.0.0-beta2" -AllowPrerelease
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript -AllowPrerelease
@@ -3211,9 +3284,8 @@ Describe "--- Uninstall-Script ---" -Tags "" {
 
 
         PowerShellGet\Uninstall-Script -Name $scriptName
-        Get-InstalledScript -Name $scriptName -AllowPrerelease -ErrorVariable ev #-ErrorAction SilentlyContinue
+        $installedScripts = Get-InstalledScript -Name $scriptName -AllowPrerelease -ErrorAction SilentlyContinue
 
-        $ev.Count | Should Not Be 0
-        $ev[0].FullyQualifiedErrorId | Should Be 'NoMatchFound,Microsoft.PowerShell.PackageManagement.Cmdlets.GetPackage'
+        $installedScripts | Should Be $null
     }
 }
