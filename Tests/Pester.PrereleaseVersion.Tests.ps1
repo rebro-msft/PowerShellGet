@@ -323,7 +323,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "" {
         $newModuleInfo.PrivateData.PSData.Prerelease | Should -Match $Prerelease
     }
 }
-
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 Describe "--- Publish-Module ---" -Tags "" {
     
     BeforeAll {
@@ -1310,7 +1310,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
+        $res.Version | Should Match ($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1322,7 +1323,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0-beta500"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta500"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1343,7 +1345,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $DscTestModuleLatestVersion
+        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1355,7 +1358,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1376,7 +1380,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $DscTestModuleLatestVersion
+        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1388,7 +1393,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1409,7 +1415,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $DscTestModuleLatestVersion
+        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1421,7 +1428,8 @@ Describe "--- Install-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1444,7 +1452,8 @@ Describe "--- Install-Module ---" -Tags "" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be $PrereleaseModuleLatestPrereleaseVersion
+        $res.Version | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
     }
     
     It "InstallSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
@@ -1453,7 +1462,8 @@ Describe "--- Install-Module ---" -Tags "" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0-beta500"
+        $res.Version | Should Be "2.0.0"
+        $res.Prerelease | Should Be "beta500"
     }
     
     It "InstallSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
@@ -1492,8 +1502,6 @@ Describe "--- Install-Module ---" -Tags "" {
 
     } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
     
-
-
 }
 
 Describe "--- Save-Module ---" -Tags "" {
@@ -1518,7 +1526,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
+        $res.Version | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1530,7 +1539,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0-beta500"
+        $res.Version | Should Be "2.0.0"
+        $res.Prerelease | Should Be "beta500"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1552,7 +1562,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $DscTestModuleLatestVersion
+        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1564,7 +1575,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1585,7 +1597,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $DscTestModuleLatestVersion
+        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1597,7 +1610,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1618,7 +1632,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $DscTestModuleLatestVersion
+        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1630,7 +1645,8 @@ Describe "--- Save-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1653,7 +1669,8 @@ Describe "--- Save-Module ---" -Tags "" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be $PrereleaseModuleLatestPrereleaseVersion
+        $res.Version | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
@@ -1662,7 +1679,8 @@ Describe "--- Save-Module ---" -Tags "" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0-beta500"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta500"
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
@@ -1769,7 +1787,8 @@ Describe "--- Update-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0-gamma300"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "gamma300"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1784,7 +1803,8 @@ Describe "--- Update-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "3.0.0-alpha9"
+        $res.Version | Should Match "3.0.0"
+        $res.Prerelease | Should Match "alpha9"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1799,7 +1819,8 @@ Describe "--- Update-Module ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "3.0.0-alpha9"
+        $res.Version | Should Match "3.0.0"
+        $res.Prerelease | Should Match "alpha9"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1835,7 +1856,8 @@ Describe "--- Uninstall-Module ---" -Tags "" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.Version | Should Match "2.0.0"
+        $mod.Prerelease | Should Match "beta500"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -1844,7 +1866,8 @@ Describe "--- Uninstall-Module ---" -Tags "" {
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $moduleName
-        $mod2.Version | Should Match "3.0.0-alpha9"
+        $mod2.Version | Should Match "3.0.0"
+        $mod2.Prerelease | Should Match "alpha9" 
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -2930,7 +2953,8 @@ Describe "--- Install-Script ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match $PrereleaseScriptLatestPrereleaseVersion
+        $res.Version | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -2942,7 +2966,8 @@ Describe "--- Install-Script ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0-alpha005"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "alpha005"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -2965,7 +2990,8 @@ Describe "--- Install-Script ---" -Tags "" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Be $PrereleaseScriptLatestPrereleaseVersion
+        $res.Version | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
+        $res.Prerelease | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
     }
     
     It "InstallSpecificPrereleaseScriptVersionByNameWithAllowPrerelease" {
@@ -2974,7 +3000,8 @@ Describe "--- Install-Script ---" -Tags "" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Be "2.0.0-alpha005"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "alpha005"
     }
     
     It "InstallSpecificPrereleaseScriptVersionByNameWithoutAllowPrerelease" {
@@ -3193,7 +3220,8 @@ Describe "--- Update-Script ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0-beta1234"
+        $res.Version | Should Match "2.0.0"
+        $res.Prerelease | Should Match "beta1234"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3208,7 +3236,8 @@ Describe "--- Update-Script ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "3.0.0-beta2"
+        $res.Version | Should Match "3.0.0"
+        $res.Prerelease | Should Match "beta2"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3223,7 +3252,8 @@ Describe "--- Update-Script ---" -Tags "" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "3.0.0-beta2"
+        $res.Version | Should Match "3.0.0"
+        $res.Prerelease | Should Match "beta2"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3258,7 +3288,8 @@ Describe "--- Uninstall-Script ---" -Tags "" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $scriptName
-        $mod.Version | Should Match "2.0.0-alpha005"
+        $mod.Version | Should Match "2.0.0"
+        $mod.Prerelease | Should Match "alpha005"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -3267,7 +3298,8 @@ Describe "--- Uninstall-Script ---" -Tags "" {
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $scriptName
-        $mod2.Version | Should Match "3.0.0-beta2"
+        $mod2.Version | Should Match "3.0.0"
+        $mod2.Prerelease | Should Match "beta2"
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
