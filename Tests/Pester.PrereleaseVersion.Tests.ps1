@@ -76,15 +76,15 @@ $RoleCapabilityInPrereleaseTestModule = "Lev1Maintenance"
 #    MODULE CMDLETS
 #========================
 
-Describe "--- New-ModuleManifest ---" -Tags "" {
+Describe "--- New-ModuleManifest ---" -Tags "Module" {
     # N/A - implementation and tests in PowerShell code.
 }
 
-Describe "--- Test-ModuleManifest ---" -Tags "" {
+Describe "--- Test-ModuleManifest ---" -Tags "Module" {
     # N/A - implementation and tests in PowerShell code.
 }
 
-Describe "--- Update-ModuleManifest ---" -Tags "" {
+Describe "--- Update-ModuleManifest ---" -Tags "Module" {
 
     BeforeEach {
         # Create temp moduleManifest to be updated
@@ -323,8 +323,8 @@ Describe "--- Update-ModuleManifest ---" -Tags "" {
         $newModuleInfo.PrivateData.PSData.Prerelease | Should -Match $Prerelease
     }
 }
-#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-Describe "--- Publish-Module ---" -Tags "" {
+
+Describe "--- Publish-Module ---" -Tags "Module" {
     
     BeforeAll {
 
@@ -989,7 +989,7 @@ Describe "--- Publish-Module ---" -Tags "" {
 }
 
 
-Describe "--- Find-Module ---" -Tags "" {
+Describe "--- Find-Module ---" -Tags "Module" {
 
     It FindModuleReturnsLatestStableVersion {
         $psgetModuleInfo = Find-Module -Name $PrereleaseTestModule -Repository $TestRepositoryName
@@ -1091,7 +1091,7 @@ Describe "--- Find-Module ---" -Tags "" {
     } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
-Describe "--- Find-DscResource ---" -Tags "" {
+Describe "--- Find-DscResource ---" -Tags "Module" {
 
     It FindDscResourceReturnsLatestStableVersion {
         $psgetCommandInfo = Find-DscResource -Name $DscResourceInPrereleaseTestModule -Repository $TestRepositoryName
@@ -1156,7 +1156,7 @@ Describe "--- Find-DscResource ---" -Tags "" {
     }
 }
 
-Describe "--- Find-Command ---" -Tags "" {
+Describe "--- Find-Command ---" -Tags "Module" {
 
     It FindCommandReturnsLatestStableVersion {
         $psgetCommandInfo = Find-Command -Name $CommandInPrereleaseTestModule -Repository $TestRepositoryName
@@ -1222,7 +1222,7 @@ Describe "--- Find-Command ---" -Tags "" {
 
 }
 
-Describe "--- Find-RoleCapability ---" -Tags "" {
+Describe "--- Find-RoleCapability ---" -Tags "Module" {
     
     It FindRoleCapabilityReturnsLatestStableVersion {
         $psgetCommandInfo = Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -Repository $TestRepositoryName
@@ -1287,7 +1287,7 @@ Describe "--- Find-RoleCapability ---" -Tags "" {
     }
 }
 
-Describe "--- Install-Module ---" -Tags "" {
+Describe "--- Install-Module ---" -Tags "Module" {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1504,7 +1504,7 @@ Describe "--- Install-Module ---" -Tags "" {
     
 }
 
-Describe "--- Save-Module ---" -Tags "" {
+Describe "--- Save-Module ---" -Tags "Module" {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1721,7 +1721,7 @@ Describe "--- Save-Module ---" -Tags "" {
     
 }
 
-Describe "--- Update-Module ---" -Tags "" {
+Describe "--- Update-Module ---" -Tags "Module" {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1826,7 +1826,7 @@ Describe "--- Update-Module ---" -Tags "" {
     }
 }
 
-Describe "--- Uninstall-Module ---" -Tags "" {
+Describe "--- Uninstall-Module ---" -Tags "Module" {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1837,8 +1837,37 @@ Describe "--- Uninstall-Module ---" -Tags "" {
     }
 
 
-    # Uninstall a prerelease module
-    It UninstallPrereleaseModule {
+    It UninstallPrereleaseModuleOneVersion {
+        $moduleName = "TestPackage"
+        
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        $mod = Get-InstalledModule -Name $moduleName
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "2.0.0"
+        $mod.Prerelease | Should Match "beta500"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+        $modules = Get-InstalledModule -Name $moduleName -AllVersions
+
+        if($PSVersionTable.PSVersion -gt '5.0.0')
+        {
+            $modules | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        }
+        else
+        {
+            $mod.Name | Should Be $moduleName
+        }   
+
+        PowerShellGet\Uninstall-Module -Name $moduleName
+        $installedModules = Get-InstalledModule -Name $moduleName -AllVersions -ErrorAction SilentlyContinue
+
+        $installedModules | Should Be $null
+    }
+
+    It UninstallPrereleaseModuleMultipleVersions {
 
         $moduleName = "TestPackage"
 
@@ -1887,6 +1916,117 @@ Describe "--- Uninstall-Module ---" -Tags "" {
 
         $installedModules | Should Be $null
     }
+
+    It UninstallPrereleaseModuleUsingRequiredVersion {
+        $moduleName = "TestPackage"
+        
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        $mod = Get-InstalledModule -Name $moduleName
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "2.0.0"
+        $mod.Prerelease | Should Match "beta500"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+        $modules = Get-InstalledModule -Name $moduleName -AllVersions
+
+        if($PSVersionTable.PSVersion -gt '5.0.0')
+        {
+            $modules | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        }
+        else
+        {
+            $mod.Name | Should Be $moduleName
+        }   
+
+        PowerShellGet\Uninstall-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease
+        $installedModules = Get-InstalledModule -Name $moduleName -AllVersions -ErrorAction SilentlyContinue
+
+        $installedModules | Should Be $null
+    }
+
+    It GetInstalledModulePipeToUninstallModuleOneVersion {
+        $moduleName = "TestPackage"
+        
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        $mod = Get-InstalledModule -Name $moduleName
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "2.0.0"
+        $mod.Prerelease | Should Match "beta500"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
+        
+        $modules = Get-InstalledModule -Name $moduleName -AllVersions
+
+        if($PSVersionTable.PSVersion -gt '5.0.0')
+        {
+            $modules | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        }
+        else
+        {
+            $mod.Name | Should Be $moduleName
+        }   
+
+        Get-InstalledModule -Name $moduleName | Uninstall-Module
+        
+        $installedModules = Get-InstalledModule -Name $moduleName -AllVersions -ErrorAction SilentlyContinue
+
+        $installedModules | Should Be $null
+    }
+
+    It GetInstalledModulePipeToUninstallModuleMultipleVersions {
+        $moduleName = "TestPackage"
+        
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "1.0.0" -Repository $TestRepositoryName -Force
+        $mod = Get-InstalledModule -Name $moduleName -RequiredVersion "1.0.0"
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "1.0.0"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "false"
+
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        $mod = Get-InstalledModule -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease
+        $mod | Should Not Be $null
+        $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod.Name | Should Be $moduleName
+        $mod.Version | Should Match "2.0.0"
+        $mod.Prerelease | Should Match "beta500"
+        $mod.AdditionalMetadata | Should Not Be $null
+        $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
+
+        PowerShellGet\Update-Module -Name $moduleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
+        $mod2 = Get-InstalledModule -Name $moduleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
+        $mod2 | Should Not Be $null
+        $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
+        $mod2.Name | Should Be $moduleName
+        $mod2.Version | Should Match "3.0.0"
+        $mod2.Prerelease | Should Match "alpha9" 
+        $mod2.AdditionalMetadata | Should Not Be $null
+        $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
+        
+        $modules2 = Get-InstalledModule -Name $moduleName -AllVersions
+
+        if($PSVersionTable.PSVersion -gt '5.0.0')
+        {
+            $modules2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 3
+        }
+        else
+        {
+            $mod2.Name | Should Be $moduleName
+        }   
+
+        Get-InstalledModule -Name $moduleName -AllVersions | Uninstall-Module
+        
+        $installedModules = Get-InstalledModule -Name $moduleName -AllVersions -ErrorAction SilentlyContinue
+
+        $installedModules | Should Be $null
+    }
 }
 
 
@@ -1899,11 +2039,11 @@ Describe "--- Uninstall-Module ---" -Tags "" {
 #     SCRIPT CMDLETS
 #========================
 
-Describe "--- New-ScriptFileInfo ---" -Tags "" {
+Describe "--- New-ScriptFileInfo ---" -Tags "Script" {
     # N/A - tested below
 }
 
-Describe "--- Test-ScriptFileInfo ---" -Tags "" {
+Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
     
     BeforeAll {
         # Create temp module to be published
@@ -2206,7 +2346,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "" {
     }
 }
 
-Describe "--- Update-ScriptFileInfo ---" -Tags "" {
+Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
     
     BeforeAll {
         Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
@@ -2328,7 +2468,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "" {
     }
 }
 
-Describe "--- Publish-Script ---" -Tags "" {
+Describe "--- Publish-Script ---" -Tags "Script" {
     
     BeforeAll {
 
@@ -2820,7 +2960,7 @@ Describe "--- Publish-Script ---" -Tags "" {
     }
 }
 
-Describe "--- Find-Script ---" -Tags "" {
+Describe "--- Find-Script ---" -Tags "Script" {
     
     # Downlevel Tests
     #-----------------
@@ -2931,7 +3071,7 @@ Describe "--- Find-Script ---" -Tags "" {
     #>
 }
 
-Describe "--- Install-Script ---" -Tags "" {
+Describe "--- Install-Script ---" -Tags "Script" {
     
     BeforeAll {
         Get-InstalledScript -Name "TestScript" -ErrorAction SilentlyContinue | Uninstall-Script -Force
@@ -3041,7 +3181,7 @@ Describe "--- Install-Script ---" -Tags "" {
     } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
-Describe "--- Save-Script ---" -Tags "" {
+Describe "--- Save-Script ---" -Tags "Script" {
 
     BeforeAll {
         PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
@@ -3153,7 +3293,7 @@ Describe "--- Save-Script ---" -Tags "" {
     } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
-Describe "--- Update-Script ---" -Tags "" {
+Describe "--- Update-Script ---" -Tags "Script" {
     
     BeforeAll {
         PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
@@ -3259,7 +3399,7 @@ Describe "--- Update-Script ---" -Tags "" {
     }
 }
 
-Describe "--- Uninstall-Script ---" -Tags "" {
+Describe "--- Uninstall-Script ---" -Tags "Script" {
     BeforeAll {
         PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
         PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
