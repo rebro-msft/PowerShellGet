@@ -48,17 +48,17 @@ $PSGetLocalAppDataPath = Microsoft.PowerShell.Management\Join-Path -Path $env:LO
 $TempPath = ([System.IO.DirectoryInfo]$env:TEMP).FullName
 
 # Register test repository
-$TestRepositoryName = "Local"
-$TestRepositorySource = "https://psgallery.localtest.me/api/v2/"
+$TestRepositoryName = "GalleryRolling"
+$TestRepositorySource = "https://dtlgallery.cloudapp.net/api/v2/"
 RegisterTestRepository
 
 # Test Items
 $PrereleaseTestModule = "TestPackage"
-$PrereleaseModuleLatestPrereleaseVersion = "3.0.0-alpha9"
+$PrereleaseModuleLatestPrereleaseVersion = "4.0.0-alpha9"
 $PrereleaseTestScript = "TestScript"
-$PrereleaseScriptLatestPrereleaseVersion = "3.0.0-beta2"
+$PrereleaseScriptLatestPrereleaseVersion = "4.0.0-beta2"
 $DscTestModule = "DscTestModule"
-$DscTestModuleLatestVersion = "2.5.0-gamma"
+$DscTestModuleLatestVersion = "2.6.0-gamma"
 $CommandInPrereleaseTestModule = "Test-PSGetTestCmdlet"
 $DscResourceInPrereleaseTestModule = "DscTestResource"
 $RoleCapabilityInPrereleaseTestModule = "Lev1Maintenance"
@@ -226,7 +226,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         $Prerelease = "-alpha+001" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "alpha+001"
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
@@ -241,7 +241,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         $Prerelease = "-alpha-beta.01" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "alpha-beta.01"
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
@@ -256,7 +256,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         $Prerelease = "-alpha.1" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "alpha.1"
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
@@ -271,7 +271,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         $Prerelease = "-error.0.0.0.1" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "error.0.0.0.1"
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
@@ -286,7 +286,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         $Prerelease = "-alpha001" 
         $Version = "3.2"
 
-        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f $Version
         $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ModuleManifest"
 
         $ScriptBlock = {
@@ -386,29 +386,29 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     }
 
     
-    It "PublishModuleSameVersionHigherPreRelease" {
+    It "PublishModuleSameVersionHigherPrerelease" {
         $version = "1.0.0"
-        $preRelease = "-alpha001"
+        $prerelease = "-alpha001"
         
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module" -NestedModules "$script:PublishModuleName.psm1"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
 
         #Copy module to $ProgramFilesModulesPath
         Copy-Item $script:PublishModuleBase $ProgramFilesModulesPath -Recurse -Force
 
         Publish-Module -Name $script:PublishModuleName -NuGetApiKey $script:ApiKey -ReleaseNotes "$script:PublishModuleName release notes" -Tags PSGet -LicenseUri "http://$script:PublishModuleName.com/license" -ProjectUri "http://$script:PublishModuleName.com" -WarningAction SilentlyContinue
         
-        $psgetItemInfo = Find-Module -Name $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module -Name $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Be $true
 
         # Publish new prerelease version
-        $preRelease = "-beta002"
+        $prerelease = "-beta002"
 
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
 
         #Copy module to $ProgramFilesModulesPath
         Copy-Item $script:PublishModuleBase $ProgramFilesModulesPath -Recurse -Force
@@ -418,83 +418,83 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         }
         $scriptBlock | Should Not Throw
         
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    It "PublishModuleWithForceSameVersionLowerPreRelease" {
+    It "PublishModuleWithForceSameVersionLowerPrerelease" {
         $version = "1.0.0"
-        $preRelease = "-beta002"
+        $prerelease = "-beta002"
 
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
 
         Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
 
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
 
 
         # Publish lower prerelease version
-        $preRelease = "-alpha001"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        $prerelease = "-alpha001"
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -Force
         }
         $scriptBlock | Should Not Throw
 
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
-    It "PublishModuleWithoutForceSameVersionLowerPreRelease" {
+    It "PublishModuleWithoutForceSameVersionLowerPrerelease" {
         $version = "1.0.0"
-        $preRelease = "-beta002"
+        $prerelease = "-beta002"
 
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
         Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
 
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
 
 
         # Publish lower prerelease version
-        $preRelease2 = "-alpha001"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease2
+        $prerelease2 = "-alpha001"
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease2
         
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey
         }
 
-        $expectedErrorMessage = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($script:PublishModuleName,$version,$($version + $preRelease),$script:PSGalleryRepoPath)
+        $expectedErrorMessage = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($script:PublishModuleName,$($version + $prerelease2),$($version + $prerelease),$script:PSGalleryRepoPath)
         $expectedFullyQualifiedErrorId = "ModuleVersionShouldBeGreaterThanGalleryVersion,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
-    It "PublishModuleSameVersionSamePreRelease" {
+    It "PublishModuleSameVersionSamePrerelease" {
         $version = "1.0.0"
-        $preRelease = "-alpha001"
+        $prerelease = "-alpha001"
 
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
         Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
 
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -502,22 +502,22 @@ Describe "--- Publish-Module ---" -Tags "Module" {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey
         }
 
-        $expectedErrorMessage = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($script:PublishModuleName,$version,$($version + $preRelease),$script:PSGalleryRepoPath)
+        $expectedErrorMessage = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($script:PublishModuleName,$($version + $prerelease),$($version + $prerelease),$script:PSGalleryRepoPath)
         $expectedFullyQualifiedErrorId = "ModuleVersionIsAlreadyAvailableInTheGallery,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
     
-    It "PublishModuleSameVersionNoPreRelease" {
+    It "PublishModuleSameVersionNoPrerelease" {
         $version = "1.0.0"
-        $preRelease = "-alpha001"
+        $prerelease = "-alpha001"
 
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
         Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
 
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -538,7 +538,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 
-    It "PublishModuleWithForceNewPreReleaseAfterStableVersion" {
+    It "PublishModuleWithForceNewPrereleaseAfterStableVersion" {
         $version = "1.0.0"
 
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
@@ -554,21 +554,21 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 
 
         # Publish prerelease version
-        $preRelease = "-alpha001"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        $prerelease = "-alpha001"
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -Force -WarningAction SilentlyContinue
         }
         $scriptBlock | Should Not Throw
 
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $preRelease) -AllowPrerelease
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    It "PublishModuleWithoutForceNewPreReleaseAfterStableVersion" {
+    It "PublishModuleWithoutForceNewPrereleaseAfterStableVersion" {
         $version = "1.0.0"
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
         Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1"
@@ -582,13 +582,13 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 
 
         # Publish prerelease version
-        $preRelease = "-alpha001"
-        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -PreRelease $preRelease
+        $prerelease = "-alpha001"
+        Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($script:PublishModuleName,$version,$version,$script:PSGalleryRepoPath)
+        $expectedErrorMessage = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($script:PublishModuleName,$($version + $prerelease),$version,$script:PSGalleryRepoPath)
         $expectedFullyQualifiedErrorId = "ModuleVersionShouldBeGreaterThanGalleryVersion,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -596,7 +596,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     It "PublishModuleWithInvalidPrereleaseString" {
         
         # Create manifest without using Update-ModuleManifest, it will throw validation error.
-        $invalidPreReleaseModuleManifestContent = @"
+        $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0'
@@ -614,32 +614,32 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Invalid PreRelease module manifest'
+    Description = 'Invalid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-alpha+001'
+            Prerelease = '-alpha+001'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPreReleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha+001'
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     It "PublishModuleWithInvalidPrereleaseString2" {
 
         # Create manifest without using Update-ModuleManifest, it will throw validation error.
-        $invalidPreReleaseModuleManifestContent = @"
+        $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0'
@@ -657,32 +657,32 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Invalid PreRelease module manifest'
+    Description = 'Invalid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-alpha-beta.01'
+            Prerelease = '-alpha-beta.01'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPreReleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha-beta.01'
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     It "PublishModuleWithInvalidPrereleaseString3" {
 
         # Create manifest without using Update-ModuleManifest, it will throw validation error.
-        $invalidPreReleaseModuleManifestContent = @"
+        $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0'
@@ -700,32 +700,32 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Invalid PreRelease module manifest'
+    Description = 'Invalid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-alpha.1'
+            Prerelease = '-alpha.1'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPreReleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha.1'
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     It "PublishModuleWithInvalidPrereleaseString4" {
 
         # Create manifest without using Update-ModuleManifest, it will throw validation error.
-        $invalidPreReleaseModuleManifestContent = @"
+        $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0'
@@ -743,32 +743,32 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Invalid PreRelease module manifest'
+    Description = 'Invalid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-error.0.0.0.1'
+            Prerelease = '-error.0.0.0.1'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPreReleaseString
-        $expectedFullyQualifiedErrorId = "InvalidCharactersInPreReleaseString,Publish-Module"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'error.0.0.0.1'
+        $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     It "PublishModuleWithPrereleaseStringAndShortVersion" {
 
         # Create manifest without using Update-ModuleManifest, it will throw validation error.
-        $invalidPreReleaseModuleManifestContent = @"
+        $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '3.2'
@@ -786,24 +786,24 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Invalid PreRelease module manifest'
+    Description = 'Invalid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-alpha001'
+            Prerelease = '-alpha001'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
         }
 
-        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2'
         $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Publish-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -811,7 +811,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     It "PublishModuleWithPrereleaseStringAndLongVersion" {
 
         # Create manifest without using Update-ModuleManifest, it will throw validation error.
-        $invalidPreReleaseModuleManifestContent = @"
+        $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '3.2.1.0.5'
@@ -829,18 +829,18 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Invalid PreRelease module manifest'
+    Description = 'Invalid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-alpha001'
+            Prerelease = '-alpha001'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
 
         Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ErrorVariable ev -ErrorAction SilentlyContinue
@@ -852,7 +852,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     It "PublishModuleWithValidPrereleaseAndVersion" {
 
         # Create manifest without using Update-ModuleManifest
-        $validPreReleaseModuleManifestContent = @"
+        $validPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0'
@@ -870,18 +870,18 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Valid PreRelease module manifest'
+    Description = 'Valid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = 'alpha001'
+            Prerelease = 'alpha001'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey
@@ -890,7 +890,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 
         $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion "1.0.0-alpha001" -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -898,7 +898,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     It "PublishModuleWithValidPrereleaseAndVersion2" {
 
         # Create manifest without using Update-ModuleManifest
-        $validPreReleaseModuleManifestContent = @"
+        $validPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0.0'
@@ -916,18 +916,18 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Valid PreRelease module manifest'
+    Description = 'Valid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = '-gamma002'
+            Prerelease = '-gamma002'
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPreReleaseModuleManifestContent
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPrereleaseModuleManifestContent
 
         $scriptBlock = {
             Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
@@ -936,7 +936,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 
         $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion "1.0.0.0-gamma002" -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $preRelease)
+        $psgetItemInfo.Version | Should Match $($version + $prerelease)
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -944,7 +944,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     It "PublishModuleWithEmptyPrereleaseFieldShouldSucceed" {
         
         # Create manifest without using Update-ModuleManifest
-        $validPreReleaseModuleManifestContent = @"
+        $validPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
     ModuleVersion = '1.0.0'
@@ -962,18 +962,18 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     Copyright = '(c) 2017 rebro. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'Valid PreRelease module manifest'
+    Description = 'Valid Prerelease module manifest'
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Prerelease string, part of Version
-            PreRelease = ''
+            Prerelease = ''
         } # End of PSData hashtable
     } # End of PrivateData hashtable
 }
 "@
-                Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPreReleaseModuleManifestContent
+                Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPrereleaseModuleManifestContent
         
                 $scriptBlock = {
                     Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
@@ -1310,8 +1310,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match ($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1323,8 +1322,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta500"
+        $res.Version | Should Match "2.0.0-beta500"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1345,8 +1343,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $DscTestModuleLatestVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1358,8 +1355,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta200"
+        $res.Version | Should Match "2.0.0-beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1380,8 +1376,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $DscTestModuleLatestVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1393,8 +1388,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta200"
+        $res.Version | Should Match "2.0.0-beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1415,8 +1409,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $DscTestModuleLatestVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1428,8 +1421,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta200"
+        $res.Version | Should Match "2.0.0-beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1452,8 +1444,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Be $PrereleaseModuleLatestPrereleaseVersion
     }
     
     It "InstallSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
@@ -1462,8 +1453,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0"
-        $res.Prerelease | Should Be "beta500"
+        $res.Version | Should Be "2.0.0-beta500"
     }
     
     It "InstallSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
@@ -1526,8 +1516,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Be $PrereleaseModuleLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1539,8 +1528,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0"
-        $res.Prerelease | Should Be "beta500"
+        $res.Version | Should Be "2.0.0-beta500"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1562,8 +1550,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $DscTestModuleLatestVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1575,8 +1562,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta200"
+        $res.Version | Should Match "2.0.0-beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1597,8 +1583,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $DscTestModuleLatestVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1610,8 +1595,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta200"
+        $res.Version | Should Match "2.0.0-beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1632,8 +1616,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($DscTestModuleLatestVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $DscTestModuleLatestVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1645,8 +1628,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta200"
+        $res.Version | Should Match "2.0.0-beta200"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1669,8 +1651,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Be $($PrereleaseModuleLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Be $PrereleaseModuleLatestPrereleaseVersion
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
@@ -1679,8 +1660,9 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta500"
+        $res.Version | Should Match "2.0.0-beta500"
+        $res.AdditionalMetadata | Should Not Be $null
+        $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
@@ -1735,29 +1717,29 @@ Describe "--- Update-Module ---" -Tags "Module" {
     # Updated to latest release version by default: When release version is installed (ex. 1.0.0 --> 2.0.0)
     It "UpdateModuleFromReleaseToReleaseVersionByDefault" {
         Install-Module $PrereleaseTestModule -RequiredVersion "1.0.0" -Repository $TestRepositoryName
-        Update-Module $PrereleaseTestModule # Should update to latest stable version 2.0.0
+        Update-Module $PrereleaseTestModule # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0"
+        $res.Version | Should Match "3.0.0"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 
     # Updated to latest release version by default: When prerelease version is installed (ex. 1.0.0-omega55 --> 2.0.0)
     It "UpdateModuleFromPrereleaseToReleaseVersionByDefault" {
-        Install-Module $PrereleaseTestModule -RequiredVersion "1.0.0-omega55" -AllowPrerelease -Repository $TestRepositoryName
-        Update-Module $PrereleaseTestModule # Should update to latest stable version 2.0.0
+        Install-Module $PrereleaseTestModule -RequiredVersion "1.0.0-alpha001" -AllowPrerelease -Repository $TestRepositoryName
+        Update-Module $PrereleaseTestModule # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0"
+        $res.Version | Should Match "3.0.0"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
@@ -1765,14 +1747,14 @@ Describe "--- Update-Module ---" -Tags "Module" {
     # (In place update): prerelease to release, same root version.  (ex. 2.0.0-beta500 --> 2.0.0)
     It "UpdateModuleSameVersionPrereleaseToReleaseInPlaceUpdate" {
         Install-Module $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
-        Update-Module $PrereleaseTestModule # Should update to latest stable version 2.0.0
+        Update-Module $PrereleaseTestModule # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0"
+        $res.Version | Should Be "3.0.0"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
@@ -1787,8 +1769,7 @@ Describe "--- Update-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "gamma300"
+        $res.Version | Should Match "2.0.0-gamma300"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1796,15 +1777,14 @@ Describe "--- Update-Module ---" -Tags "Module" {
     # Updated from stable to prerelease in new version (ex. 2.0.0 --> 3.0.0-alpha9)
     It "UpdateModuleFromReleaseToPrereleaseDifferentVersion" {
         Install-Module $PrereleaseTestModule -RequiredVersion "2.0.0" -Repository $TestRepositoryName
-        Update-Module  $PrereleaseTestModule -AllowPrerelease # Should update to latest prerelease version 3.0.0-alpha9
+        Update-Module  $PrereleaseTestModule -AllowPrerelease # Should update to latest prerelease version 4.0.0-alpha9
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "3.0.0"
-        $res.Prerelease | Should Match "alpha9"
+        $res.Version | Should Match "4.0.0-alpha9"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1819,8 +1799,7 @@ Describe "--- Update-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "3.0.0"
-        $res.Prerelease | Should Match "alpha9"
+        $res.Version | Should Match "4.0.0-alpha9"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1845,8 +1824,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0"
-        $mod.Prerelease | Should Match "beta500"
+        $mod.Version | Should Match "2.0.0-beta500"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -1885,8 +1863,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0"
-        $mod.Prerelease | Should Match "beta500"
+        $mod.Version | Should Match "2.0.0-beta500"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -1895,8 +1872,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $moduleName
-        $mod2.Version | Should Match "3.0.0"
-        $mod2.Prerelease | Should Match "alpha9" 
+        $mod2.Version | Should Match "3.0.0-alpha9"
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -1925,8 +1901,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0"
-        $mod.Prerelease | Should Match "beta500"
+        $mod.Version | Should Match "2.0.0-beta500"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -1955,8 +1930,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0"
-        $mod.Prerelease | Should Match "beta500"
+        $mod.Version | Should Match "2.0.0-beta500"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -1995,8 +1969,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0"
-        $mod.Prerelease | Should Match "beta500"
+        $mod.Version | Should Match "2.0.0-beta500"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -2005,8 +1978,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $moduleName
-        $mod2.Version | Should Match "3.0.0"
-        $mod2.Prerelease | Should Match "alpha9" 
+        $mod2.Version | Should Match "3.0.0-alpha9"
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -2112,7 +2084,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha+001'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2146,7 +2118,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
             Test-ScriptFileInfo -Path $scriptFilePath 
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha-beta.01'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2180,7 +2152,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha.1'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2214,7 +2186,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'error.0.0.0.1'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2248,7 +2220,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2'
         $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2366,7 +2338,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
 
     BeforeEach {
         $scriptName = 'Fabrikam-ServerScript'
-        Install-Script $scriptName
+        Install-Script $scriptName -Repository $TestRepositoryName
 		$Script = Get-InstalledScript -Name $scriptName
 		$script:ScriptFilePath = Join-Path -Path $script.InstalledLocation -ChildPath "$scriptName.ps1"
     }
@@ -2382,7 +2354,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha+001'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2394,7 +2366,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha-beta.01'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2406,7 +2378,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha.1'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2418,7 +2390,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'error.0.0.0.1'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2430,7 +2402,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2'
         $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
@@ -2549,7 +2521,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
     }
 
     
-    It "PublishScriptSameVersionHigherPreRelease" {
+    It "PublishScriptSameVersionHigherPrerelease" {
         
         # Publish first version
         $version = "1.0.0-alpha001"
@@ -2578,7 +2550,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    It "PublishScriptSameVersionLowerPreReleaseWithForce" {
+    It "PublishScriptSameVersionLowerPrereleaseWithForce" {
         
         # Publish first version
         $version = "1.0.0-beta002"
@@ -2609,7 +2581,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
-    It "PublishScriptSameVersionLowerPreReleaseWithoutForce" {
+    It "PublishScriptSameVersionLowerPrereleaseWithoutForce" {
         
         # Publish first version
         $version = "1.0.0-beta002"
@@ -2633,7 +2605,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $scriptBlock | Should -Throw -ErrorId "ScriptPrereleaseStringShouldBeGreaterThanGalleryPrereleaseString,Publish-Script"
     }
     
-    It "PublishScriptSameVersionSamePreRelease" {
+    It "PublishScriptSameVersionSamePrerelease" {
         
         # Publish first version
         $version = "1.0.0-alpha001"
@@ -2655,7 +2627,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $scriptBlock | Should -Throw -ErrorId "ScriptVersionIsAlreadyAvailableInTheGallery,Publish-Script"
     }
 
-    It "PublishScriptSameVersionNoPreRelease" {
+    It "PublishScriptSameVersionNoPrerelease" {
         
         # Publish first version
         $version = "1.0.0-alpha001"
@@ -2685,7 +2657,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 
-    It "PublishScriptWithForceNewPreReleaseAfterStableVersion" {
+    It "PublishScriptWithForceNewPrereleaseAfterStableVersion" {
         
         # Publish stable version
         $version = "1.0.0"
@@ -2714,7 +2686,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
-    It "PublishScriptWithoutForceNewPreReleaseAfterStableVersion" {
+    It "PublishScriptWithoutForceNewPrereleaseAfterStableVersion" {
         
         # Publish stable version
         $version = "1.0.0"
@@ -2756,7 +2728,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 #>
 "@
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha+001'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
 
         $ScriptBlock = {
@@ -2784,7 +2756,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 #>
 "@
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha-beta.01'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
 
         $ScriptBlock = {
@@ -2812,7 +2784,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 #>
 "@
         
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'alpha.1'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
 
         $ScriptBlock = {
@@ -2840,7 +2812,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 #>
 "@
 
-        $expectedErrorMessage = "The Prerelease string contains invalid characters. Please ensure that only characters 'a-zA-Z0-9' and possibly hyphen ('-') at the beginning are in the Prerelease string."
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f 'error.0.0.0.1'
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Test-ScriptFileInfo"
 
         $ScriptBlock = {
@@ -2868,7 +2840,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 #>
 "@
         
-        $expectedErrorMessage = "Version must have a minimum of 3 parts and a maximum of 4 parts for a Prerelease string to be used."
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2'
         $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
 
         $ScriptBlock = {
@@ -3093,8 +3065,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $PrereleaseScriptLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3106,8 +3077,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "alpha005"
+        $res.Version | Should Match "2.0.0-alpha005"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3130,8 +3100,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -First 1)
-        $res.Prerelease | Should Match $($PrereleaseScriptLatestPrereleaseVersion -split '-',2 | Select-Object -Skip 1)
+        $res.Version | Should Match $PrereleaseScriptLatestPrereleaseVersion
     }
     
     It "InstallSpecificPrereleaseScriptVersionByNameWithAllowPrerelease" {
@@ -3140,8 +3109,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "alpha005"
+        $res.Version | Should Match "2.0.0-alpha005"
     }
     
     It "InstallSpecificPrereleaseScriptVersionByNameWithoutAllowPrerelease" {
@@ -3305,47 +3273,47 @@ Describe "--- Update-Script ---" -Tags "Script" {
         PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
     } 
 
-    # Updated to latest release version by default: When release version is installed (ex. 1.0.0 --> 2.0.0)
+    # Updated to latest release version by default: When release version is installed (ex. 1.0.0 --> 3.0.0)
     It "UpdateScriptFromReleaseToReleaseVersionByDefault" {
         Install-Script $PrereleaseTestScript -RequiredVersion 1.0.0 -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript # Should update to latest stable version 2.0.0
+        Update-Script $PrereleaseTestScript # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
+        $res.Version | Should Match "3.0.0"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 
-    # Updated to latest release version by default: When prerelease version is installed (ex. 1.0.0-alpha001 --> 2.0.0)
+    # Updated to latest release version by default: When prerelease version is installed (ex. 1.0.0-alpha1 --> 3.0.0)
     It "UpdateScriptFromPrereleaseToReleaseVersionByDefault" {
-        Install-Script $PrereleaseTestScript -RequiredVersion "1.0.0-alpha001" -AllowPrerelease -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript # Should update to latest stable version 2.0.0
+        Install-Script $PrereleaseTestScript -RequiredVersion "1.0.0-alpha1" -AllowPrerelease -Repository $TestRepositoryName
+        Update-Script $PrereleaseTestScript # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
+        $res.Version | Should Match "3.0.0"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
     
-    # (In place update): prerelease to release, same root version.  (ex. 2.0.0-alpha005 --> 2.0.0)
+    # (In place update): prerelease to release, same root version.  (ex. 2.0.0-alpha005 --> 3.0.0)
     It "UpdateScriptSameVersionPrereleaseToReleaseInPlaceUpdate" {
         Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript # Should update to latest stable version 2.0.0
+        Update-Script $PrereleaseTestScript # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
+        $res.Version | Should Match "3.0.0"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
@@ -3360,40 +3328,37 @@ Describe "--- Update-Script ---" -Tags "Script" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0"
-        $res.Prerelease | Should Match "beta1234"
+        $res.Version | Should Match "2.0.0-beta1234"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # Updated from stable to prerelease in new version (ex. 1.0.0 --> 3.0.0-beta2)
+    # Updated from stable to prerelease in new version (ex. 1.0.0 --> 4.0.0-beta2)
     It "UpdateScriptFromReleaseToPrereleaseDifferentVersion" {
         Install-Script $PrereleaseTestScript -RequiredVersion "1.0.0" -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript -AllowPrerelease # Should update to latest prerelease version 3.0.0-beta2
+        Update-Script $PrereleaseTestScript -AllowPrerelease # Should update to latest prerelease version 4.0.0-beta2
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript -AllowPrerelease
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "3.0.0"
-        $res.Prerelease | Should Match "beta2"
+        $res.Version | Should Match "4.0.0-beta2"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    # prerelease --> prerelease  (different root version) (ex. 2.0.0-beta1234 --> 3.0.0-beta2)
+    # prerelease --> prerelease  (different root version) (ex. 2.0.0-beta1234 --> 4.0.0-beta2)
     It "UpdateScriptFromPrereleaseToPrereleaseDifferentRootVersion" {
         Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-beta1234" -AllowPrerelease -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript -RequiredVersion "3.0.0-beta2" -AllowPrerelease
+        Update-Script $PrereleaseTestScript -RequiredVersion "4.0.0-beta2" -AllowPrerelease
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript -AllowPrerelease
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "3.0.0"
-        $res.Prerelease | Should Match "beta2"
+        $res.Version | Should Match "4.0.0-beta2"
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3428,18 +3393,16 @@ Describe "--- Uninstall-Script ---" -Tags "Script" {
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $scriptName
-        $mod.Version | Should Match "2.0.0"
-        $mod.Prerelease | Should Match "alpha005"
+        $mod.Version | Should Match "2.0.0-alpha005"
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
-        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion "3.0.0-beta2" -AllowPrerelease
+        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion "4.0.0-beta2" -AllowPrerelease
         $mod2 = Get-InstalledScript -Name $scriptName -AllowPrerelease
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $scriptName
-        $mod2.Version | Should Match "3.0.0"
-        $mod2.Prerelease | Should Match "beta2"
+        $mod2.Version | Should Match "4.0.0-beta2"
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         

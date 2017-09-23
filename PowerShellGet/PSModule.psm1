@@ -968,7 +968,7 @@ function Publish-Module
         if($Name)
         {
             $module = Microsoft.PowerShell.Core\Get-Module -ListAvailable -Name $Name -Verbose:$false | 
-                          Microsoft.PowerShell.Core\Where-Object {-not $RequiredVersion -or ($RequiredVersion -eq $_.Version)} 
+                          Microsoft.PowerShell.Core\Where-Object {-not $RequiredVersion -or ($RequiredVersion.Trim() -eq $_.Version)} 
 
             if(-not $module)
             {
@@ -1176,9 +1176,11 @@ function Publish-Module
                            -ExceptionObject $moduleName
             }
 
-            # Validate Prerelease string (logic not yet in Test-ModuleManifest)
+            # Validate Prerelease string
             if ($moduleInfo.PrivateData -and 
+                $moduleInfo.PrivateData.GetType().ToString() -eq "System.Collections.Hashtable" -and
                 $moduleInfo.PrivateData["PSData"] -and 
+                $moduleInfo.PrivateData.PSData.GetType().ToString() -eq "System.Collections.Hashtable" -and
                 $moduleInfo.PrivateData.PSData["Prerelease"])
             {
                 $prereleaseValidationResult = Validate-PrereleaseString -Version $moduleInfo.Version `
@@ -1233,16 +1235,18 @@ function Publish-Module
 
             if($currentPSGetItemInfo)
             {
-                $splitVersionPrerelease = $currentPSGetItemInfo.Version -split '-',2
-                $currentPSGetItemVersion = $splitVersionPrerelease | Select-Object -First 1
+                $currentPSGetItemVersion,$currentPSGetItemPrereleaseString = $currentPSGetItemInfo.Version -split '-',2
 
                 if($currentPSGetItemVersion -eq $moduleInfo.Version)
                 {
                     # Compare Prerelease strings
-                    $currentPSGetItemPrereleaseString = $splitVersionPrerelease | Select-Object -Skip 1
-
                     $moduleToPublishPrereleaseString = $null
-                    if ($moduleInfo.PrivateData["PSData"])
+                    if ($moduleInfo.PrivateData -and 
+                        $moduleInfo.PrivateData.GetType().ToString() -eq "System.Collections.Hashtable" -and
+                        $moduleInfo.PrivateData["PSData"] -and
+                        $moduleInfo.PrivateData.PSData.GetType().ToString() -eq "System.Collections.Hashtable" -and
+                        $moduleInfo.PrivateData.PSData["Prerelease"]
+                        )
                     {
                         $moduleToPublishPrereleaseString = $moduleInfo.PrivateData.PSData["Prerelease"]
                         if ($moduleToPublishPrereleaseString -and $moduleToPublishPrereleaseString.StartsWith('-'))
@@ -1251,9 +1255,11 @@ function Publish-Module
                         }
                     }
 
+                    $modVersion = "$($moduleInfo.Version)-$moduleToPublishPrereleaseString"
+
                     if (-not $currentPSGetItemPrereleaseString -and -not $moduleToPublishPrereleaseString)
                     {
-                        $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                        $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $modVersion, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
                         ThrowError -ExceptionName 'System.InvalidOperationException' `
                                    -ExceptionMessage $message `
                                    -ErrorId 'ModuleVersionIsAlreadyAvailableInTheGallery' `
@@ -1263,7 +1269,7 @@ function Publish-Module
                     elseif (-not $Force -and (-not $currentPSGetItemPrereleaseString -and $moduleToPublishPrereleaseString))
                     {
                         # User is trying to publish a new Prerelease version AFTER publishing the stable version.
-                        $message = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                        $message = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($moduleInfo.Name, $modVersion, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
                         ThrowError -ExceptionName "System.InvalidOperationException" `
                                    -ExceptionMessage $message `
                                    -ErrorId "ModuleVersionShouldBeGreaterThanGalleryVersion" `
@@ -1278,7 +1284,7 @@ function Publish-Module
                     {
                         if ($currentPSGetItemPrereleaseString -eq $moduleToPublishPrereleaseString)
                         {
-                            $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                            $message = $LocalizedData.ModuleVersionIsAlreadyAvailableInTheGallery -f ($moduleInfo.Name, $modVersion, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
                             ThrowError -ExceptionName 'System.InvalidOperationException' `
                                        -ExceptionMessage $message `
                                        -ErrorId 'ModuleVersionIsAlreadyAvailableInTheGallery' `
@@ -1288,7 +1294,7 @@ function Publish-Module
 
                         elseif (-not $Force -and ($currentPSGetItemPrereleaseString -gt $moduleToPublishPrereleaseString))
                         {
-                            $message = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($moduleInfo.Name, $moduleInfo.Version, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
+                            $message = $LocalizedData.ModuleVersionShouldBeGreaterThanGalleryVersion -f ($moduleInfo.Name, $modVersion, $currentPSGetItemInfo.Version, $currentPSGetItemInfo.RepositorySourceLocation)
                             ThrowError -ExceptionName "System.InvalidOperationException" `
                                        -ExceptionMessage $message `
                                        -ErrorId "ModuleVersionShouldBeGreaterThanGalleryVersion" `
@@ -1514,18 +1520,7 @@ function Find-Module
                 }
             }
             else {
-                if ($psgetItemInfo.Prerelease) 
-                {
-                    # Need to combine Version and Prerelease fields into Version field for display
-                    $versionValue = $psgetItemInfo.Version
-                    $prereleaseValue = $psgetItemInfo.Prerelease
-                    $psgetItemInfo | Add-Member -Name Version -MemberType NoteProperty -Value $($versionValue + '-' + $prereleaseValue) -Force
-                    $psgetItemInfo
-                }
-                else 
-                {
-                    $psgetItemInfo
-                }
+                $psgetItemInfo
             }
 
             if ($psgetItemInfo -and 
@@ -1642,7 +1637,8 @@ function Save-Module
         [switch]
         $Force,
 
-        [Parameter()]
+        [Parameter(ParameterSetName='NameAndPathParameterSet')]
+        [Parameter(ParameterSetName='NameAndLiteralPathParameterSet')]
         [switch]
         $AllowPrerelease
     )
@@ -1878,7 +1874,7 @@ function Install-Module
         [switch]
         $Force,
 
-        [Parameter()]
+        [Parameter(ParameterSetName='NameParameterSet')]
         [switch]
         $AllowPrerelease
     )
@@ -2006,11 +2002,8 @@ function Install-Module
 
                 $PSBoundParameters["Name"] = $psgetModuleInfo.Name
                 $PSBoundParameters["RequiredVersion"] = $psgetModuleInfo.Version
-                if ($psgetModuleInfo.AdditionalMetadata.IsPrerelease) 
-                {
-                    $PSBoundParameters[$script:AllowPrereleaseVersions] = $true
-                    $null = $PSBoundParameters.Remove("AllowPrerelease")
-                }
+                $PSBoundParameters[$script:AllowPrereleaseVersions] = $psgetModuleInfo.AdditionalMetadata.IsPrerelease -match "true"
+                $null = $PSBoundParameters.Remove("AllowPrerelease")
                 $PSBoundParameters['Source'] = $psgetModuleInfo.Repository
                 $PSBoundParameters["PackageManagementProvider"] = (Get-ProviderName -PSCustomObject $psgetModuleInfo)
 
@@ -2108,7 +2101,6 @@ function Update-Module
         [Switch]
         $Force,
 
-        [Parameter()]
         [Switch]
         $AllowPrerelease
     )
@@ -2329,10 +2321,7 @@ function Uninstall-Module
 
                 $PSBoundParameters["Name"] = $inputValue.Name
                 $PSBoundParameters["RequiredVersion"] = $inputValue.Version
-                if ($inputValue.AdditionalMetadata.IsPrerelease -and $inputValue.Prerelease) 
-                {
-                    $PSBoundParameters["RequiredVersion"] = $inputValue.Version + '-' + $inputValue.Prerelease
-                }
+
                 $null = PackageManagement\Uninstall-Package @PSBoundParameters
             }
         }
@@ -3313,18 +3302,7 @@ function Find-Script
                     }
                 }
                 else {
-                    if ($psgetItemInfo.Prerelease) 
-                    {
-                        # Need to combine Version and Prerelease fields into Version field for display
-                        $versionValue = $psgetItemInfo.Version
-                        $prereleaseValue = $psgetItemInfo.Prerelease
-                        $psgetItemInfo | Add-Member -Name Version -MemberType NoteProperty -Value $($versionValue + '-' + $prereleaseValue) -Force
-                        $psgetItemInfo
-                    }
-                    else 
-                    {
-                        $psgetItemInfo
-                    }
+                    $psgetItemInfo
                 }
 
                 if ($psgetItemInfo -and 
@@ -3450,7 +3428,8 @@ function Save-Script
         [switch]
         $Force,
 
-        [Parameter()]
+        [Parameter(ParameterSetName='NameAndPathParameterSet')]
+        [Parameter(ParameterSetName='NameAndLiteralPathParameterSet')]
         [switch]
         $AllowPrerelease
     )
@@ -3686,7 +3665,7 @@ function Install-Script
         [switch]
         $Force,
 
-        [Parameter()]
+        [Parameter(ParameterSetName='NameParameterSet')]
         [switch]
         $AllowPrerelease
     )
@@ -4190,7 +4169,7 @@ function Uninstall-Script
         [Switch]
         $Force,
 
-        [Parameter()]
+        [Parameter(ParameterSetName='NameParameterSet')]
         [Switch]
         $AllowPrerelease
     )
@@ -4222,10 +4201,6 @@ function Uninstall-Script
 
                 $PSBoundParameters["Name"] = $inputValue.Name
                 $PSBoundParameters["RequiredVersion"] = $inputValue.Version
-                if ($inputValue.AdditionalMetadata.IsPrerelease -and $inputValue.Prerelease) 
-                {
-                    $PSBoundParameters["RequiredVersion"] = $inputValue.Version + '-' + $inputValue.Prerelease
-                }
 
                 $null = PackageManagement\Uninstall-Package @PSBoundParameters
             }
@@ -5198,9 +5173,9 @@ function Test-ScriptFileInfo
         if ($PSScriptInfo.Version -match '-')
         {
             # Version contains Prerelease string.  Break apart and validate separately.
-            $splitVersionPrerelease = $PSScriptInfo.Version -split '-',2
-            $prereleaseValidationResult = Validate-PrereleaseString -Version $($splitVersionPrerelease | Select-Object -First 1) `
-                                                                    -Prerelease $($splitVersionPrerelease | Select-Object -Skip 1) `
+            $splitVersion,$splitPrerelease = $PSScriptInfo.Version -split '-',2
+            $prereleaseValidationResult = Validate-PrereleaseString -Version $splitVersion `
+                                                                    -Prerelease $splitPrerelease  `
                                                                     -InfoObject $PSScriptInfo `
                                                                     -PSCmdlet $PSCmdlet
             if (-not $prereleaseValidationResult)
@@ -6803,8 +6778,7 @@ function Validate-VersionString
 
     [Version]$parsedVersion = $null
 
-    $versionPart = $Version -split '-',2 | Select-Object -First 1
-    $prereleasePart = $Version -split '-',2 | Select-Object -Skip 1
+    $versionPart,$prereleasePart = $Version -split '-',2 
 
     # try parsing version string
     if (-not ( [System.Version]::TryParse($versionPart, ([ref]$parsedVersion)) ))
@@ -6819,7 +6793,7 @@ function Validate-VersionString
     }
 
     # validate prerelease string
-    if ( ($Version -match '-') -and $prereleasePart)
+    if ($prereleasePart)
     {
         Validate-PrereleaseString -Version $versionPart `
                                   -Prerelease $prereleasePart `
@@ -7602,7 +7576,6 @@ function New-PSGetItemInfo
                                                         -MemberType NoteProperty `
                                                         -Name 'IsPrerelease' `
                                                         -Value $true
-                
             }
             else {
                 Microsoft.PowerShell.Utility\Add-Member -InputObject $additionalMetadata `
@@ -7625,17 +7598,10 @@ function New-PSGetItemInfo
             $Type = $script:PSArtifactTypeScript
         }
 
-        $versionValue,$prereleaseValue = $swid.Version -split '-',2
-        if (-not $prereleaseValue) 
-        {
-            # if null, will put an object instead of empty string in value
-            $prereleaseValue = ""
-        }
-
+        
         $PSGetItemInfo = Microsoft.PowerShell.Utility\New-Object PSCustomObject -Property ([ordered]@{
                 Name = $swid.Name
-                Version = $versionValue
-                Prerelease = $prereleaseValue
+                Version = $swid.Version
                 Type = $Type    
                 Description = (Get-First $swid.Metadata["description"])
                 Author = (Get-EntityName -SoftwareIdentity $swid -Role "author")
@@ -8616,7 +8582,10 @@ function Publish-PSArtifactUtility
         $Copyright = $PSModuleInfo.Copyright
 
         if ($PSModuleInfo.PrivateData -and 
+            $PSModuleInfo.PrivateData.GetType().ToString() -eq "System.Collections.Hashtable" -and
             $PSModuleInfo.PrivateData["PSData"] -and 
+            $PSModuleInfo.PrivateData.PSData -and
+            $PSModuleInfo.PrivateData.PSData.GetType().ToString() -eq "System.Collections.Hashtable" -and
             $PSModuleInfo.PrivateData.PSData["Prerelease"])
         {
             if ($PSModuleInfo.PrivateData.PSData.Prerelease.StartsWith("-"))
@@ -8628,6 +8597,7 @@ function Publish-PSArtifactUtility
                 $Version = [string]$Version + "-" + $PSModuleInfo.PrivateData.PSData.Prerelease
             }
         }
+        
 
         if($PSModuleInfo.PrivateData -and 
            ($PSModuleInfo.PrivateData.GetType().ToString() -eq "System.Collections.Hashtable") -and 
@@ -9033,18 +9003,17 @@ function ValidateAndAdd-PSScriptInfoEntry
         $script:Version {
                             $KeyName = $script:Version
                             [Version]$Version = $null
-                            $versionPart = $Value -split '-',2 | Select-Object -First 1
-                            $prereleasePart = $Value -split '-',2 | Select-Object -Skip 1
+                            $versionPart,$prereleasePart = $Value -split '-',2
                             
                             # Special case for prerelease string in version field, must pull out before parsing version
                             if ( ( $Value -match '-' ) -and 
-                                 ( [System.Version]::TryParse($($Value -split '-',2 | Select-Object -First 1), ([ref]$Version)) ) -and 
-                                 ( Validate-PrereleaseString -Version $($Value -split '-',2 | Select-Object -First 1) `
-                                                                                     -Prerelease $($Value -split '-',2 | Select-Object -Skip 1) `
-                                                                                     -InfoObject $Value `
-                                                                                     -PSCmdlet $CallerPSCmdlet ) )
+                                 ( [System.Version]::TryParse($versionPart, ([ref]$Version)) ) -and 
+                                 ( Validate-PrereleaseString -Version $versionPart `
+                                                             -Prerelease $prereleasePart `
+                                                             -InfoObject $Value `
+                                                             -PSCmdlet $CallerPSCmdlet ) )
                             {
-                                $Value = [string]$Version + '-' + $($Value -split '-',2 | Select-Object -Skip 1)
+                                $Value = "$Version-$prereleasePart"
                             }
                             elseif ([System.Version]::TryParse($Value, ([ref]$Version)))
                             {
@@ -11102,17 +11071,10 @@ function Install-PackageUtility
                             $galleryModulePrerelease = $null
                         }
 
-                        # null null         --> equal                                       no update
-                        # null value        --> stable --> prerelease                       no update
-                        # value null        --> prerelease --> stable                       update
-                        # value = value     --> equal                                       no update
-                        # value > value     --> newer prerelease --> older prerelease       no update
-                        # value < value     --> older prerelease --> newer prerelease       update   
-
-                        if ( ($installedModuleVersion -lt $galleryModuleVersion) -or `
-                             ( ($installedModuleVersion -eq $galleryModuleVersion) -and `
-                               ( ($installedModulePrerelease -and -not $galleryModulePrerelease) -or `
-                                 ($installedModulePrerelease -lt $galleryModulePrerelease) ) ) )
+                        if (Compare-VersionPrereleaseValuesOfTwoItems -FirstItemVersion $installedModuleVersion `
+                                                                      -FirstItemPrerelease $installedModulePrerelease `
+                                                                      -SecondItemVersion $galleryModuleVersion `
+                                                                      -SecondItemPrerelease $galleryModulePrerelease) 
                         {
                             $message = $LocalizedData.FoundModuleUpdate -f ($InstalledModuleInfo.Name, $version)
                             Write-Verbose $message
@@ -11175,20 +11137,10 @@ function Install-PackageUtility
                         $galleryScriptPrereleasePart = $null
                     }
 
-                    Write-Debug "Installed script info:  $installedScriptVersionPart $installedScriptPrereleasePart"
-                    Write-Debug "Gallery script info:  $galleryScriptVersionPart $galleryScriptPrereleasePart"
-
-                    # null null         --> equal                                       no update
-                    # null value        --> stable --> prerelease                       no update
-                    # value null        --> prerelease --> stable                       update
-                    # value = value     --> equal                                       no update
-                    # value > value     --> newer prerelease --> older prerelease       no update
-                    # value < value     --> older prerelease --> newer prerelease       update   
-
-                    if ( ($installedScriptVersionPart -lt $galleryScriptVersionPart) -or `
-                         ( ($installedScriptVersionPart -eq $galleryScriptVersionPart) -and `
-                           ( ($installedScriptPrereleasePart -and -not $galleryScriptPrereleasePart) -or `
-                             ($installedScriptPrereleasePart -lt $galleryScriptPrereleasePart) ) ) )
+                    if (Compare-VersionPrereleaseValuesOfTwoItems -FirstItemVersion $installedScriptVersionPart `
+                                                                  -FirstItemPrerelease $installedScriptPrereleasePart `
+                                                                  -SecondItemVersion $galleryScriptVersionPart `
+                                                                  -SecondItemPrerelease $galleryScriptPrereleasePart) 
                     {
                         $message = $LocalizedData.FoundScriptUpdate -f ($InstalledScriptInfo.Name, $version)
                         Write-Verbose $message
@@ -11309,7 +11261,7 @@ function Install-PackageUtility
 
                     if ($packageVersion -match '-')
                     {
-                        $packageVersion = $packageVersion -split '-',2 | Select-Object -First 1
+                        $packageVersion,$packagePrerelease = $packageVersion -split '-',2
                     }
 
                     $destinationModulePath = Microsoft.PowerShell.Management\Join-Path -Path $destinationModulePath -ChildPath $packageVersion
@@ -12035,6 +11987,68 @@ function Get-InstalledPackage
 
 #region Internal Utility functions for the PackageManagement Provider Implementation
 
+function Compare-VersionPrereleaseValuesOfTwoItems
+{
+    [CmdletBinding()]
+    param(
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $FirstItemVersion,
+
+        [string]
+        $FirstItemPrerelease,
+
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $SecondItemVersion,
+
+        [string]
+        $SecondItemPrerelease
+    )
+
+    <#
+        This function compares one item to another to determine if it has a greater version (and/or prerelease).  
+        It returns true if item TWO is GREATER/newer than item ONE, it returns false otherwise.  
+
+
+        First Order:  Compare Versions
+        ===========
+        *** Version is never NULL.
+
+        Item #1         Comparison      Item #2
+        Version         of Values       Version         Notes about item #2
+        -------         ----------      -------         -------------------
+        Value           >               Value           An older release version
+        Value           <               Value         * A newer release version
+        Value           ==              Value           Inconclusive, must compare prerelease strings now
+
+
+
+        Second Order:  Compare Prereleases
+        =============
+        *** Prerelease may be NULL, indicates a release version.
+
+        Item #1         Comparison      Item #2
+        Prerelease      of Values       Prerelease      Notes about item #2
+        ----------      -----------     ----------      -------------------
+        NULL                ==          NULL            Exact same release version
+        NULL                >           Value           Older (prerelease) version
+        Value               <           NULL          * A newer, release version
+        Value               ==          Value           Exact same prerelease (and same version)
+        Value               >           Value           An older prerelease 
+        Value               <           Value         * A newer prerelease
+            
+
+        Item #2 is newer/greater than item #1 in the starred (*) combinations.
+        Those are the conditions tested for below.
+    #>
+
+    return (($FirstItemVersion.Trim() -lt $SecondItemVersion.Trim()) -or `
+            (($FirstItemVersion.Trim() -eq $SecondItemVersion.Trim()) -and `
+             (($FirstItemPrerelease -and -not $SecondItemPrerelease) -or `
+              ($FirstItemPrerelease -lt $SecondItemPrerelease))))
+}
+
 function Set-InstalledScriptsVariable
 {
     # Initialize list of scripts installed by the PowerShellGet provider
@@ -12118,78 +12132,10 @@ function Get-InstalledScriptDetails
 
                                                             if(-not $Name -or $nameWildcardPattern.IsMatch($InstalledScriptDetails.PSGetItemInfo.Name))
                                                             {
-                                                                $psgetItemInfo = $InstalledScriptDetails.PSGetItemInfo
-                                                                if($RequiredVersion)
-                                                                {
-                                                                    $psgitemPrereleasePart = $psgetItemInfo.Prerelease
-                                                                    if (-not $psgitemPrereleasePart)
-                                                                    {
-                                                                        $psgitemPrereleasePart = $null
-                                                                    }
-                                                                    $requiredVersionPart,$requiredPrereleasePart = $RequiredVersion -split '-',2
-                                                                    if (-not $psgitemPrereleasePart)
-                                                                    {
-                                                                        $psgitemPrereleasePart = $null
-                                                                    }
-
-                                                                    if (($requiredVersionPart -eq $psgetItemInfo.Version) -and 
-                                                                        ($requiredPrereleasePart -eq $psgitemPrereleasePart)) 
-                                                                    {
-                                                                        $InstalledScriptDetails
-                                                                    }
-                                                                }
-                                                                else
-                                                                {
-                                                                    $minimumBoundMet = $false
-                                                                    if ($MinimumVersion)
-                                                                    {
-                                                                        $minimumVersionPart,$minimumPrereleasePart = $MinimumVersion -split '-',2
-
-                                                                        if ($minimumVersionPart -le $psgetItemInfo.Version)
-                                                                        {
-                                                                            $psgitemPrereleasePart = if (Get-Member -InputObject $psgetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) { $psgetItemInfo.Prerelease } else { $null }
-
-                                                                            if ( (-not $minimumPrereleasePart -and -not $psgitemPrereleasePart) -or 
-                                                                                 ($minimumPrereleasePart -and -not $psgitemPrereleasePart) -or 
-                                                                                 ($minimumPrereleasePart -and $psgitemPrereleasePart -and $minimumPrereleasePart -le $psgitemPrereleasePart)
-                                                                               )
-                                                                            {
-                                                                                $minimumBoundMet = $true
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    else 
-                                                                    {
-                                                                        $minimumBoundMet = $true
-                                                                    }
-
-                                                                    $maximumBoundMet = $false
-                                                                    if ($MaximumVersion)
-                                                                    {
-                                                                        $maximumVersionPart,$maximumPrereleasePart = $MaximumVersion -split '-',2
-
-                                                                        if ($maximumVersionPart -ge $psgetItemInfo.Version)
-                                                                        {
-                                                                            $psgitemPrereleasePart = if (Get-Member -InputObject $psgetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) { $psgetItemInfo.Prerelease } else { $null }
-
-                                                                            if ( (-not $maximumPrereleasePart -and -not $psgitemPrereleasePart) -or 
-                                                                                 ( -not $maximumPrereleasePart -and $psgitemPrereleasePart ) -or 
-                                                                                 ($maximumPrereleasePart -and $psgitemPrereleasePart -and $maximumPrereleasePart -ge $psgitemPrereleasePart))
-                                                                            {
-                                                                                $maximumBoundMet = $true
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    else 
-                                                                    {
-                                                                        $maximumBoundMet = $true
-                                                                    }
-
-                                                                    if ($minimumBoundMet -and $maximumBoundMet)
-                                                                    {
-                                                                        $InstalledScriptDetails
-                                                                    }
-                                                                }
+                                                                Test-ItemVersionPrereleaseMeetsRequirements -InstalledItemDetails $InstalledScriptDetails `
+                                                                                                            -RequiredVersion $RequiredVersion `
+                                                                                                            -MinimumVersion $MinimumVersion `
+                                                                                                            -MaximumVersion $MaximumVersion
                                                             }
                                                         }
                                                     }
@@ -12233,81 +12179,103 @@ function Get-InstalledModuleDetails
 
                                                             if(-not $Name -or $nameWildcardPattern.IsMatch($InstalledModuleDetails.PSGetItemInfo.Name))
                                                             {
-                                                                $psgetItemInfo = $InstalledModuleDetails.PSGetItemInfo
-                                                                if($RequiredVersion)
-                                                                {
-                                                                    $psgitemPrereleasePart = $psgetItemInfo.Prerelease
-                                                                    if (-not $psgitemPrereleasePart)
-                                                                    {
-                                                                        $psgitemPrereleasePart = $null
-                                                                    }
-                                                                    $requiredVersionPart,$requiredPrereleasePart = $RequiredVersion -split '-',2
-                                                                    if (-not $psgitemPrereleasePart)
-                                                                    {
-                                                                        $psgitemPrereleasePart = $null
-                                                                    }
 
-                                                                    if (($requiredVersionPart -eq $psgetItemInfo.Version) -and 
-                                                                        ($requiredPrereleasePart -eq $psgitemPrereleasePart)) 
-                                                                    {
-                                                                        $InstalledModuleDetails
-                                                                    }
-                                                                }
-                                                                else
-                                                                {
-                                                                    $minimumBoundMet = $false
-                                                                    if ($MinimumVersion)
-                                                                    {
-                                                                        $minimumVersionPart,$minimumPrereleasePart = $MinimumVersion -split '-',2
-
-                                                                        if ($minimumVersionPart -le $psgetItemInfo.Version)
-                                                                        {
-                                                                            $psgitemPrereleasePart = if (Get-Member -InputObject $psgetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) { $psgetItemInfo.Prerelease } else { $null }
-
-                                                                            if ( (-not $minimumPrereleasePart -and -not $psgitemPrereleasePart) -or 
-                                                                                 ($minimumPrereleasePart -and -not $psgitemPrereleasePart) -or 
-                                                                                 ($minimumPrereleasePart -and $psgitemPrereleasePart -and $minimumPrereleasePart -le $psgitemPrereleasePart)
-                                                                               )
-                                                                            {
-                                                                                $minimumBoundMet = $true
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    else 
-                                                                    {
-                                                                        $minimumBoundMet = $true
-                                                                    }
-
-                                                                    $maximumBoundMet = $false
-                                                                    if ($MaximumVersion)
-                                                                    {
-                                                                        $maximumVersionPart,$maximumPrereleasePart = $MaximumVersion -split '-',2
-
-                                                                        if ($maximumVersionPart -ge $psgetItemInfo.Version)
-                                                                        {
-                                                                            $psgitemPrereleasePart = if (Get-Member -InputObject $psgetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) { $psgetItemInfo.Prerelease } else { $null }
-
-                                                                            if ( (-not $maximumPrereleasePart -and -not $psgitemPrereleasePart) -or 
-                                                                                 ( -not $maximumPrereleasePart -and $psgitemPrereleasePart ) -or 
-                                                                                 ($maximumPrereleasePart -and $psgitemPrereleasePart -and $maximumPrereleasePart -ge $psgitemPrereleasePart))
-                                                                            {
-                                                                                $maximumBoundMet = $true
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    else 
-                                                                    {
-                                                                        $maximumBoundMet = $true
-                                                                    }
-
-                                                                    if ($minimumBoundMet -and $maximumBoundMet)
-                                                                    {
-                                                                        $InstalledModuleDetails
-                                                                    }
-                                                                }
+                                                                Test-ItemVersionPrereleaseMeetsRequirements -InstalledItemDetails $InstalledModuleDetails `
+                                                                                                            -RequiredVersion $RequiredVersion `
+                                                                                                            -MinimumVersion $MinimumVersion `
+                                                                                                            -MaximumVersion $MaximumVersion
                                                             }
                                                         }
                                                     }
+}
+
+# Returns the installed item details object if it meets the Required, Minimum, and Maximum version bounds.
+function Test-ItemVersionPrereleaseMeetsRequirements
+{
+    [CmdletBinding()]
+    param(
+
+        [ValidateNotNullOrEmpty()]
+        [System.Collections.Hashtable]
+        $InstalledItemDetails,
+
+        [string]
+        $RequiredVersion,
+        
+        [string]
+        $MinimumVersion,
+
+        [string]
+        $MaximumVersion
+    )
+
+    $psgetItemInfo = $InstalledItemDetails.PSGetItemInfo
+    if($RequiredVersion)
+    {
+        $psgitemVersionPart,$psgitemPrereleasePart = $psgetItemInfo.Version -split '-',2
+        #$psgitemPrereleasePart = $psgetItemInfo.Prerelease
+        $requiredVersionPart,$requiredPrereleasePart = $RequiredVersion -split '-',2
+        
+        if (($requiredVersionPart -eq $psgitemVersionPart) -and 
+            ($requiredPrereleasePart -eq $psgitemPrereleasePart)) 
+        {
+            $InstalledItemDetails
+        }
+    }
+    else
+    {
+        $minimumBoundMet = $false
+        if ($MinimumVersion)
+        {
+            $minimumVersionPart,$minimumPrereleasePart = $MinimumVersion -split '-',2
+
+            if ($minimumVersionPart -le $psgitemVersionPart)
+            {
+                #$psgitemPrereleasePart = if (Get-Member -InputObject $psgetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) { $psgetItemInfo.Prerelease } else { $null }
+                #$psgitemPrereleasePart = $psgetItemInfo.Prerelease
+
+                if ( (-not $minimumPrereleasePart -and -not $psgitemPrereleasePart) -or 
+                     ($minimumPrereleasePart -and -not $psgitemPrereleasePart) -or 
+                     ($minimumPrereleasePart -and $psgitemPrereleasePart -and $minimumPrereleasePart -le $psgitemPrereleasePart)
+                   )
+                {
+                    $minimumBoundMet = $true
+                }
+            }
+        }
+        else 
+        {
+            $minimumBoundMet = $true
+        }
+
+        $maximumBoundMet = $false
+        if ($MaximumVersion)
+        {
+            $maximumVersionPart,$maximumPrereleasePart = $MaximumVersion -split '-',2
+
+            if ($maximumVersionPart -ge $psgitemVersionPart)
+            {
+                #$psgitemPrereleasePart = if (Get-Member -InputObject $psgetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) { $psgetItemInfo.Prerelease } else { $null }
+                #$psgitemPrereleasePart = $psgetItemInfo.Prerelease
+
+                if ( (-not $maximumPrereleasePart -and -not $psgitemPrereleasePart) -or 
+                     ( -not $maximumPrereleasePart -and $psgitemPrereleasePart ) -or 
+                     ($maximumPrereleasePart -and $psgitemPrereleasePart -and $maximumPrereleasePart -ge $psgitemPrereleasePart))
+                {
+                    $maximumBoundMet = $true
+                }
+            }
+        }
+        else 
+        {
+            $maximumBoundMet = $true
+        }
+
+        if ($minimumBoundMet -and $maximumBoundMet)
+        {
+            $InstalledItemDetails
+        }
+    }
 }
 
 function New-SoftwareIdentityFromPackage
@@ -12721,12 +12689,10 @@ function New-SoftwareIdentityFromPSGetItemInfo
         $details["SourceName"] = $sourceName
     }
 
-    $fullVersion = if ((Get-Member -InputObject $PSGetItemInfo -Name Prerelease -ErrorAction SilentlyContinue) -and $PSGetItemInfo.Prerelease) { $psgetItemInfo.Version + '-' + $PSGetItemInfo.Prerelease } else { $psgetItemInfo.Version }
-
     $params = @{
                 FastPackageReference = $fastPackageReference;
                 Name = $psgetItemInfo.Name;
-                Version = $fullVersion;
+                Version = $psgetItemInfo.Version;
                 versionScheme  = "MultiPartNumeric";
                 Source = $SourceLocation;
                 Summary = $psgetItemInfo.Description;
@@ -13195,7 +13161,7 @@ function Test-ModuleInstalled
                            Microsoft.PowerShell.Core\Where-Object {
                                -not (Test-ModuleSxSVersionSupport) `
                                -or -not $RequiredVersion `
-                               -or ($RequiredVersion -eq $_.Version.ToString()) `
+                               -or ($RequiredVersion.Trim() -eq $_.Version.ToString()) `
                                -or (Test-InstalledModuleVersionPrereleaseFields -InstalledModule $_ -RequiredVersion $RequiredVersion)
                             } | Microsoft.PowerShell.Utility\Select-Object -Unique -First 1 -ErrorAction Ignore
 
@@ -13213,33 +13179,9 @@ function Test-InstalledModuleVersionPrereleaseFields
         $RequiredVersion
     )
 
-    # compare version and prerelease fields
-    if ($RequiredVersion -contains '-')
-    {
-        $requiredVersionPart,$requiredPrereleasePart = $RequiredVersion -split '-',2
-    }
-    else 
-    {
-        $requiredVersionPart = $RequiredVersion
-        $requiredPrereleasePart = $null
-    }
-
-    $installedModuleVersionPart = $InstalledModule.Version.ToString()
-    if ((Get-Member -InputObject $InstalledModule -Name PrivateData -ErrorAction SilentlyContinue) -and `
-        ($InstalledModule.PrivateData.ContainsKey('PSData')) -and `
-        ($InstalledModule.PrivateData.PSData.ContainsKey('Prerelease')))
-    {
-        $installedModulePrereleasePart = $InstalledModule.PrivateData.PSData.Prerelease
-        if ($installedModulePrereleasePart.StartsWith('-'))
-        {
-            $installedModulePrereleasePart = $installedModulePrereleasePart -split '-',2 | Select-Object -Skip 1
-        }
-    }
-    else 
-    {
-        $installedModulePrereleasePart = $null
-    }
-
+    $requiredVersionPart,$requiredPrereleasePart = $RequiredVersion -split '-',2
+    $installedModuleVersionPart,$installedModulePrereleasePart = $InstalledModule.Version -split '-',2
+    
     if (($requiredVersionPart -eq $installedModuleVersionPart) -and ($requiredPrereleasePart -eq $installedModulePrereleasePart))
     {
         return $true
@@ -13305,7 +13247,7 @@ function Test-ScriptInstalled
     }
 
     $scriptInfo = $scriptInfos | Microsoft.PowerShell.Core\Where-Object {
-                                                                (-not $RequiredVersion) -or ($RequiredVersion -eq $_.Version)
+                                                                (-not $RequiredVersion) -or ($RequiredVersion.Trim() -eq $_.Version)
                                                             } | Microsoft.PowerShell.Utility\Select-Object -First 1 -ErrorAction Ignore
 
     return $scriptInfo
@@ -14163,23 +14105,9 @@ function Update-ModuleManifest
             $Data["ReleaseNotes"] = $($ReleaseNotes -join "`r`n")
         }
         
-        if ($Prerelease)
+        if ($Prerelease -and (Validate-PrereleaseString -Version $params["ModuleVersion"] -Prerelease $Prerelease -InfoObject $moduleInfo -PSCmdlet $PSCmdlet))
         {
-            if ($ModuleVersion)
-            {
-                # if passing in a new version
-                $version = $ModuleVersion
-            }
-            else 
-            {
-                # otherwise, using existing version
-                $version = $moduleInfo.Version
-            }
-
-            if (Validate-PrereleaseString -Version $version -Prerelease $Prerelease -InfoObject $moduleInfo -PSCmdlet $PSCmdlet)
-            {
-                $Data[$script:Prerelease] = $Prerelease
-            }
+            $Data[$script:Prerelease] = $Prerelease
         }
         
         if($ExternalModuleDependencies)
@@ -14590,8 +14518,9 @@ function Validate-PrereleaseString
     $prereleaseStringValid = $Prerelease -match $validCharacters
     if (-not $prereleaseStringValid)
     {
+        $message = $LocalizedData.InvalidCharactersInPrereleaseString -f $Prerelease
         ThrowError -ExceptionName "System.InvalidOperationException" `
-                   -ExceptionMessage $LocalizedData.InvalidCharactersInPrereleaseString `
+                   -ExceptionMessage $message `
                    -ErrorId "InvalidCharactersInPrereleaseString" `
                    -CallerPSCmdlet $PSCmdlet `
                    -ErrorCategory InvalidOperation `
@@ -14602,8 +14531,9 @@ function Validate-PrereleaseString
     $versionPartsCount = $Version.Split('.').Count
     if ( ($versionPartsCount -lt 3) -or ($versionPartsCount -gt 4))
     {
+        $message = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f $Version
         ThrowError -ExceptionName "System.InvalidOperationException" `
-                   -ExceptionMessage $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage `
+                   -ExceptionMessage $message `
                    -ErrorId "IncorrectVersionPartsCountForPrereleaseStringUsage" `
                    -CallerPSCmdlet $PSCmdlet `
                    -ErrorCategory InvalidOperation `
