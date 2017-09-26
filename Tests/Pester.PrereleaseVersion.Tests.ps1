@@ -49,16 +49,19 @@ $TempPath = ([System.IO.DirectoryInfo]$env:TEMP).FullName
 
 # Register test repository
 $TestRepositoryName = "GalleryRolling"
-$TestRepositorySource = "https://dtlgallery.cloudapp.net/api/v2/"
+$TestRepositorySource = "https://dtlgalleryint.cloudapp.net/api/v2/"
 RegisterTestRepository
 
 # Test Items
 $PrereleaseTestModule = "TestPackage"
 $PrereleaseModuleLatestPrereleaseVersion = "4.0.0-alpha9"
+$PrereleaseModuleMiddleVersion = "2.0.0-beta500"
 $PrereleaseTestScript = "TestScript"
 $PrereleaseScriptLatestPrereleaseVersion = "4.0.0-beta2"
+$PrereleaseScriptMiddleVersion = "2.0.0-alpha005"
 $DscTestModule = "DscTestModule"
 $DscTestModuleLatestVersion = "2.6.0-gamma"
+$DscTestModuleMiddleVersion = "2.0.0-beta200"
 $CommandInPrereleaseTestModule = "Test-PSGetTestCmdlet"
 $DscResourceInPrereleaseTestModule = "DscTestResource"
 $RoleCapabilityInPrereleaseTestModule = "Lev1Maintenance"
@@ -101,7 +104,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         RemoveItem "$script:TempModulesPath\*"
     }
 
-    It "UpdateModuleManifestWithAllFields" {
+    It UpdateModuleManifestWithAllFields {
 
         Set-Content "$script:UpdateModuleManifestBase\$script:UpdateModuleManifestName.psm1" -Value "function Get-$script:UpdateModuleManifestName { Get-Date }"
         $Guid =  [System.Guid]::Newguid().ToString()
@@ -223,67 +226,67 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
     -Skip:$($IsWindows -eq $False) 
 
     It UpdateModuleManifestWithInvalidPrereleaseString {
-        $Prerelease = "-alpha+001" 
+        $Prerelease = "alpha+001" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "alpha+001"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f $Prerelease
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
             New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
+            Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
         }
 
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     } 
 
     It UpdateModuleManifestWithInvalidPrereleaseString2 {
-        $Prerelease = "-alpha-beta.01" 
+        $Prerelease = "alpha-beta.01" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "alpha-beta.01"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f $Prerelease
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
             New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
+            Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
         }
 
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     } 
 
     It UpdateModuleManifestWithInvalidPrereleaseString3 {
-        $Prerelease = "-alpha.1" 
+        $Prerelease = "alpha.1" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "alpha.1"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f $Prerelease
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
             New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
+            Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
         }
 
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     } 
 
     It UpdateModuleManifestWithInvalidPrereleaseString4 {
-        $Prerelease = "-error.0.0.0.1" 
+        $Prerelease = "error.0.0.0.1" 
         $Version = "3.2.1"
 
-        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f "error.0.0.0.1"
+        $expectedErrorMessage = $LocalizedData.InvalidCharactersInPrereleaseString -f $Prerelease
         $expectedFullyQualifiedErrorId = "InvalidCharactersInPrereleaseString,Update-ModuleManifest"
 
         $ScriptBlock = {
             New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
+            Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
         }
 
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     } 
 
     It UpdateModuleManifestWithPrereleaseStringAndShortModuleVersion {
-        $Prerelease = "-alpha001" 
+        $Prerelease = "alpha001" 
         $Version = "3.2"
 
         $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f $Version
@@ -291,7 +294,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
 
         $ScriptBlock = {
             New-ModuleManifest -path $script:testManifestPath
-            Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
+            Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
         }
 
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
@@ -1026,20 +1029,17 @@ Describe "--- Find-Module ---" -Tags "Module" {
     }
 
     It FindModuleSpecificPrereleaseVersionWithAllowPrerelease {
-        $version = "2.0.0-beta500"
-        $psgetModuleInfo = Find-Module -Name $PrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -AllowPrerelease
+        $psgetModuleInfo = Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName -AllowPrerelease
 
         # check that IsPrerelease = true, and Prerelease string is not null.
-        $psgetModuleInfo.Version | Should Match $version
+        $psgetModuleInfo.Version | Should Match $PrereleaseModuleMiddleVersion
         $psgetModuleInfo.AdditionalMetadata | Should Not Be $null
         $psgetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It FindModuleSpecificPrereleaseVersionWithoutAllowPrerelease {
-        $version = "2.0.0-beta500"
-
         $scriptBlock = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName
+            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
         }
 
         $expectedErrorMessage = $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
@@ -1076,7 +1076,7 @@ Describe "--- Find-Module ---" -Tags "Module" {
 
     It FindSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel {
         $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName
+            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
         }
         $script | Should Throw
 
@@ -1084,7 +1084,7 @@ Describe "--- Find-Module ---" -Tags "Module" {
 
     It FindSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel {
         $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
+            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         }
         $script | Should Throw
 
@@ -1132,22 +1132,19 @@ Describe "--- Find-DscResource ---" -Tags "Module" {
     }
 
     It FindDscResourceSpecificPrereleaseVersionWithAllowPrerelease {
-        $version = "2.0.0-beta200"
-        $psgetCommandInfo = Find-DscResource -Name $DscResourceInPrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -AllowPrerelease -ModuleName $DscTestModule
+        $psgetCommandInfo = Find-DscResource -Name $DscResourceInPrereleaseTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName -AllowPrerelease -ModuleName $DscTestModule
 
         # check that IsPrerelease = true, and Prerelease string is not null.
         $psgetCommandInfo | Should Not Be $null
         $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
-        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $version
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $DscTestModuleMiddleVersion
         $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
         $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It FindDscResourceSpecificPrereleaseVersionWithoutAllowPrerelease {
-        $version = "2.0.0-beta200"
-
         $scriptBlock = {
-            Find-DscResource -Name $DscResourceInPrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -ModuleName $DscTestModule
+            Find-DscResource -Name $DscResourceInPrereleaseTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName -ModuleName $DscTestModule
         }
 
         $expectedErrorMessage = $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
@@ -1197,22 +1194,19 @@ Describe "--- Find-Command ---" -Tags "Module" {
     }
 
     It FindCommandSpecificPrereleaseVersionWithAllowPrerelease {
-        $version = "2.0.0-beta200"
-        $psgetCommandInfo = Find-Command -Name $CommandInPrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -AllowPrerelease -ModuleName $DscTestModule
+        $psgetCommandInfo = Find-Command -Name $CommandInPrereleaseTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName -AllowPrerelease -ModuleName $DscTestModule
 
         # check that IsPrerelease = true, and Prerelease string is not null.
         $psgetCommandInfo | Should Not Be $null
         $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
-        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $version
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $DscTestModuleMiddleVersion
         $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
         $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It FindCommandSpecificPrereleaseVersionWithoutAllowPrerelease {
-        $version = "2.0.0-beta200"
-
         $scriptBlock = {
-            Find-Command -Name $CommandInPrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -ModuleName $DscTestModule
+            Find-Command -Name $CommandInPrereleaseTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName -ModuleName $DscTestModule
         }
 
         $expectedErrorMessage = $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
@@ -1263,22 +1257,19 @@ Describe "--- Find-RoleCapability ---" -Tags "Module" {
     }
 
     It FindRoleCapabilitySpecificPrereleaseVersionWithAllowPrerelease {
-        $version = "2.0.0-beta200"
-        $psgetCommandInfo = Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -AllowPrerelease -ModuleName $DscTestModule
+        $psgetCommandInfo = Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName -AllowPrerelease -ModuleName $DscTestModule
 
         # check that IsPrerelease = true, and Prerelease string is not null.
         $psgetCommandInfo | Should Not Be $null
         $psgetCommandInfo.PSGetModuleInfo | Should Not Be $null
-        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $version
+        $psgetCommandInfo.PSGetModuleInfo.Version | Should Match $DscTestModuleMiddleVersion
         $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata | Should Not Be $null
         $psgetCommandInfo.PSGetModuleInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It FindRoleCapabilitySpecificPrereleaseVersionWithoutAllowPrerelease {
-        $version = "2.0.0-beta200"
-
         $scriptBlock = {
-            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -RequiredVersion $version -Repository $TestRepositoryName -ModuleName $DscTestModule
+            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName -ModuleName $DscTestModule
         }
 
         $expectedErrorMessage = $LocalizedData.AllowPrereleaseRequiredToUsePrereleaseStringInVersion
@@ -1316,20 +1307,20 @@ Describe "--- Install-Module ---" -Tags "Module" {
     }
 
     It "PipeFindToInstallModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName | Install-Module
+        Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Install-Module
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0-beta500"
+        $res.Version | Should Match $PrereleaseModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindToInstallModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName | Install-Module
+            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName | Install-Module
         }
         $script | Should Throw
     }
@@ -1349,20 +1340,20 @@ Describe "--- Install-Module ---" -Tags "Module" {
     }
 
     It "PipeFindCommandToInstallModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -Repository $TestRepositoryName -AllowPrerelease -RequiredVersion "2.0.0-beta200" | Install-Module
+        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -Repository $TestRepositoryName -AllowPrerelease -RequiredVersion $DscTestModuleMiddleVersion | Install-Module
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match $DscTestModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindCommandToInstallModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -Repository $TestRepositoryName -RequiredVersion "2.0.0-beta200" | Install-Module
+            Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -Repository $TestRepositoryName -RequiredVersion $DscTestModuleMiddleVersion | Install-Module
         }
         $script | Should Throw
     }
@@ -1382,20 +1373,20 @@ Describe "--- Install-Module ---" -Tags "Module" {
     }
 
     It "PipeFindDscResourceToInstallModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -AllowPrerelease -Repository $TestRepositoryName | Install-Module
+        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Install-Module
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match $DscTestModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindDscResourceToInstallModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -Repository $TestRepositoryName | Install-Module
+            Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Install-Module
         }
         $script | Should Throw
     }
@@ -1415,20 +1406,20 @@ Describe "--- Install-Module ---" -Tags "Module" {
     }
 
     It "PipeFindRoleCapabilityToInstallModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -AllowPrerelease -Repository $TestRepositoryName | Install-Module
+        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Install-Module
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match $DscTestModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindRoleCapabilityToInstallModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -Repository $TestRepositoryName | Install-Module
+            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Install-Module
         }
         $script | Should Throw
     }
@@ -1448,17 +1439,17 @@ Describe "--- Install-Module ---" -Tags "Module" {
     }
     
     It "InstallSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
-        Install-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0-beta500"
+        $res.Version | Should Be $PrereleaseModuleMiddleVersion
     }
     
     It "InstallSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Install-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName
+            Install-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
         }
         $script | Should Throw
     }
@@ -1478,7 +1469,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
 
     It "InstallSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
         $script = {
-            Install-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName
+            Install-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
         }
         $script | Should Throw
 
@@ -1486,7 +1477,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
 
     It "InstallSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel" {
         $script = {
-            Install-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
+            Install-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         }
         $script | Should Throw
 
@@ -1522,20 +1513,20 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Be "2.0.0-beta500"
+        $res.Version | Should Be $PrereleaseModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1556,20 +1547,20 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindCommandToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match $DscTestModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindCommandToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1589,20 +1580,20 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindDscResourceToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match $DscTestModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindDscResourceToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1622,20 +1613,20 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindRoleCapabilityToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $script:DscTestModule
-        $res.Version | Should Match "2.0.0-beta200"
+        $res.Version | Should Match $DscTestModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     It "PipeFindRoleCapabilityToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion "2.0.0-beta200" -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1655,19 +1646,19 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
-        Save-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+        Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "2.0.0-beta500"
+        $res.Version | Should Match $PrereleaseModuleMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Save-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1687,7 +1678,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
     It "SaveSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
         $script = {
-            Save-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
 
@@ -1695,7 +1686,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
     It "SaveSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel" {
         $script = {
-            Save-Module -Name $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
         }
         $script | Should Throw
 
@@ -1746,7 +1737,7 @@ Describe "--- Update-Module ---" -Tags "Module" {
 
     # (In place update): prerelease to release, same root version.  (ex. 2.0.0-beta500 --> 2.0.0)
     It "UpdateModuleSameVersionPrereleaseToReleaseInPlaceUpdate" {
-        Install-Module $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Module $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         Update-Module $PrereleaseTestModule # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
@@ -1761,7 +1752,7 @@ Describe "--- Update-Module ---" -Tags "Module" {
 
     # (In place update): prerelease to prerelease, same root version.  (ex. 2.0.0-beta500 --> 2.0.0-gamma300)    
     It "UpdateModuleSameVersionPrereleaseToPrereleaseInPlaceUpdate" {
-        Install-Module $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Module $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         Update-Module  $PrereleaseTestModule -RequiredVersion "2.0.0-gamma300" -AllowPrerelease # Should update to latest prerelease version 2.0.0-gamma300
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
@@ -1784,14 +1775,14 @@ Describe "--- Update-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "4.0.0-alpha9"
+        $res.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
     # prerelease --> prerelease  (different root version) (ex. 2.0.0-beta500 --> 3.0.0-alpha9)
     It "UpdateModuleFromPrereleaseToPrereleaseDifferentRootVersion" {
-        Install-Module $PrereleaseTestModule -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Module $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         Update-Module  $PrereleaseTestModule -AllowPrerelease # Should update to latest prerelease version 3.0.0-alpha9
 
         $res = Get-InstalledModule -Name $PrereleaseTestModule
@@ -1799,7 +1790,7 @@ Describe "--- Update-Module ---" -Tags "Module" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestModule
-        $res.Version | Should Match "4.0.0-alpha9"
+        $res.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -1819,12 +1810,12 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
     It UninstallPrereleaseModuleOneVersion {
         $moduleName = "TestPackage"
         
-        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -Force
         $mod = Get-InstalledModule -Name $moduleName
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.Version | Should Match $PrereleaseModuleMiddleVersion
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -1858,21 +1849,21 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "false"
 
-        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -Force
         $mod = Get-InstalledModule -Name $moduleName
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.Version | Should Match $PrereleaseModuleMiddleVersion
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
-        PowerShellGet\Update-Module -Name $moduleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
+        PowerShellGet\Update-Module -Name $moduleName -RequiredVersion $PrereleaseModuleLatestPrereleaseVersion -AllowPrerelease
         $mod2 = Get-InstalledModule -Name $moduleName
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $moduleName
-        $mod2.Version | Should Match "3.0.0-alpha9"
+        $mod2.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -1896,12 +1887,12 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
     It UninstallPrereleaseModuleUsingRequiredVersion {
         $moduleName = "TestPackage"
         
-        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -Force
         $mod = Get-InstalledModule -Name $moduleName
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.Version | Should Match $PrereleaseModuleMiddleVersion
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
@@ -1916,7 +1907,7 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
             $mod.Name | Should Be $moduleName
         }   
 
-        PowerShellGet\Uninstall-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease
+        PowerShellGet\Uninstall-Module -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease
         $installedModules = Get-InstalledModule -Name $moduleName -AllVersions -ErrorAction SilentlyContinue
 
         $installedModules | Should Be $null
@@ -1925,12 +1916,12 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
     It GetInstalledModulePipeToUninstallModuleOneVersion {
         $moduleName = "TestPackage"
         
-        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -Force
         $mod = Get-InstalledModule -Name $moduleName
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.Version | Should Match $PrereleaseModuleMiddleVersion
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -1964,21 +1955,21 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "false"
 
-        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName -Force
-        $mod = Get-InstalledModule -Name $moduleName -RequiredVersion "2.0.0-beta500" -AllowPrerelease
+        PowerShellGet\Install-Module -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -Force
+        $mod = Get-InstalledModule -Name $moduleName -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $moduleName
-        $mod.Version | Should Match "2.0.0-beta500"
+        $mod.Version | Should Match $PrereleaseModuleMiddleVersion
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
-        PowerShellGet\Update-Module -Name $moduleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
-        $mod2 = Get-InstalledModule -Name $moduleName -RequiredVersion "3.0.0-alpha9" -AllowPrerelease
+        PowerShellGet\Update-Module -Name $moduleName -RequiredVersion $PrereleaseModuleLatestPrereleaseVersion -AllowPrerelease
+        $mod2 = Get-InstalledModule -Name $moduleName -RequiredVersion $PrereleaseModuleLatestPrereleaseVersion -AllowPrerelease
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $moduleName
-        $mod2.Version | Should Match "3.0.0-alpha9"
+        $mod2.Version | Should Match $PrereleaseModuleLatestPrereleaseVersion
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
@@ -2934,33 +2925,6 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 
 Describe "--- Find-Script ---" -Tags "Script" {
     
-    # Downlevel Tests
-    #-----------------
-    It FindScriptByNameWithAllowPrereleaseDownlevel {
-        $script = {
-            Find-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-beta500" -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-beta500" -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-
     # Find-Script Tests
     #-------------------
     It FindScriptReturnsLatestStableVersion {
@@ -2989,7 +2953,6 @@ Describe "--- Find-Script ---" -Tags "Script" {
         $results | Where-Object { ($_.AdditionalMetadata.IsPrerelease -eq $false) -and ($_.Version -notmatch '-') } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
     
-    # >>>>>>> Failing (as expected, not yet implemented) <<<<<
     It FindScriptAllVersionsShouldReturnOnlyStableVersions {
         $results = Find-Script -Name $PrereleaseTestScript -Repository $TestRepositoryName -AllVersions
 
@@ -2999,7 +2962,7 @@ Describe "--- Find-Script ---" -Tags "Script" {
     }
 
     It FindScriptSpecificPrereleaseVersionWithAllowPrerelease {
-        $version = "3.0.0-beta2"
+        $version = "2.0.0-beta1234"
         $psgetScriptInfo = Find-Script -Name $PrereleaseTestScript -RequiredVersion $version -Repository $TestRepositoryName -AllowPrerelease
 
         # check that IsPrerelease = true, and Prerelease string is not null.
@@ -3041,6 +3004,33 @@ Describe "--- Find-Script ---" -Tags "Script" {
         $resultsDependencies | Where-Object { ($_.Name -ne $PrereleaseTestScript) -and ($_.AdditionalMetadata.IsPrerelease -eq $true) } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
     }
     #>
+
+    
+    # Downlevel Tests
+    #-----------------
+    It FindScriptByNameWithAllowPrereleaseDownlevel {
+        $script = {
+            Find-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+    It FindSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel {
+        $script = {
+            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
+
+    It FindSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel {
+        $script = {
+            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
+        }
+        $script | Should Throw
+
+    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
 Describe "--- Install-Script ---" -Tags "Script" {
@@ -3071,20 +3061,20 @@ Describe "--- Install-Script ---" -Tags "Script" {
     }
     
     It "PipeFindToInstallScriptSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName | Install-Script
+        Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Install-Script
         $res = Get-InstalledScript -Name $PrereleaseTestScript
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0-alpha005"
+        $res.Version | Should Match $PrereleaseScriptMiddleVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
     
     It "PipeFindToInstallScriptSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -Repository $TestRepositoryName | Install-Script
+            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName | Install-Script
         }
         $script | Should Throw
     }
@@ -3104,17 +3094,17 @@ Describe "--- Install-Script ---" -Tags "Script" {
     }
     
     It "InstallSpecificPrereleaseScriptVersionByNameWithAllowPrerelease" {
-        Install-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         $res = Get-InstalledScript -Name $PrereleaseTestScript
 
         $res | Should Not BeNullOrEmpty
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "2.0.0-alpha005"
+        $res.Version | Should Match $PrereleaseScriptMiddleVersion
     }
     
     It "InstallSpecificPrereleaseScriptVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Install-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -Repository $TestRepositoryName
+            Install-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName
         }
         $script | Should Throw
     }
@@ -3134,7 +3124,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
 
     It "InstallSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
         $script = {
-            Install-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -Repository $TestRepositoryName
+            Install-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName
         }
         $script | Should Throw
 
@@ -3142,7 +3132,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
 
     It "InstallSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel" {
         $script = {
-            Install-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
+            Install-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         }
         $script | Should Throw
 
@@ -3178,7 +3168,7 @@ Describe "--- Save-Script ---" -Tags "Script" {
     }
     
     It "PipeFindToSaveScriptSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
+        Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
 
         $scriptPath = Join-Path -Path $MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
 
@@ -3187,12 +3177,12 @@ Describe "--- Save-Script ---" -Tags "Script" {
         $versionContent = Select-String -Path "$scriptPath.ps1" -Pattern ".VERSION"
         $savedVersion = $versionContent -split ' ',2 | Select-Object -Skip 1
 
-        $savedVersion | Should Be "2.0.0-alpha005"
+        $savedVersion | Should Be $PrereleaseScriptMiddleVersion
     }
 
     It "PipeFindToSaveScriptSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
+            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
         }
         $script | Should Throw
     }
@@ -3214,7 +3204,7 @@ Describe "--- Save-Script ---" -Tags "Script" {
     }
     
     It "SaveSpecificPrereleaseScriptVersionByNameWithAllowPrerelease" {
-        Save-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+        Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
         
         $scriptPath = Join-Path -Path $MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
 
@@ -3223,12 +3213,12 @@ Describe "--- Save-Script ---" -Tags "Script" {
         $versionContent = Select-String -Path "$scriptPath.ps1" -Pattern ".VERSION"
         $savedVersion = $versionContent -split ' ',2 | Select-Object -Skip 1
 
-        $savedVersion | Should Be "2.0.0-alpha005"
+        $savedVersion | Should Be $PrereleaseScriptMiddleVersion
     }
     
     It "SaveSpecificPrereleaseScriptVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Save-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
         }
         $script | Should Throw
     }
@@ -3246,7 +3236,7 @@ Describe "--- Save-Script ---" -Tags "Script" {
 
     It "SaveSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
         $script = {
-            Save-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
         }
         $script | Should Throw
 
@@ -3254,7 +3244,7 @@ Describe "--- Save-Script ---" -Tags "Script" {
 
     It "SaveSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel" {
         $script = {
-            Save-Script -Name $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
         }
         $script | Should Throw
 
@@ -3305,7 +3295,7 @@ Describe "--- Update-Script ---" -Tags "Script" {
     
     # (In place update): prerelease to release, same root version.  (ex. 2.0.0-alpha005 --> 3.0.0)
     It "UpdateScriptSameVersionPrereleaseToReleaseInPlaceUpdate" {
-        Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Script $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         Update-Script $PrereleaseTestScript # Should update to latest stable version 3.0.0
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript
@@ -3320,7 +3310,7 @@ Describe "--- Update-Script ---" -Tags "Script" {
 
     # (In place update): prerelease to prerelease, same root version.  (ex. 2.0.0-alpha005 --> 2.0.0-beta1234)    
     It "UpdateScriptSameVersionPrereleaseToPrereleaseInPlaceUpdate" {
-        Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-alpha005" -AllowPrerelease -Repository $TestRepositoryName
+        Install-Script $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
         Update-Script $PrereleaseTestScript -RequiredVersion "2.0.0-beta1234" -AllowPrerelease
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript -AllowPrerelease
@@ -3343,7 +3333,7 @@ Describe "--- Update-Script ---" -Tags "Script" {
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "4.0.0-beta2"
+        $res.Version | Should Match $PrereleaseScriptLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3351,14 +3341,14 @@ Describe "--- Update-Script ---" -Tags "Script" {
     # prerelease --> prerelease  (different root version) (ex. 2.0.0-beta1234 --> 4.0.0-beta2)
     It "UpdateScriptFromPrereleaseToPrereleaseDifferentRootVersion" {
         Install-Script $PrereleaseTestScript -RequiredVersion "2.0.0-beta1234" -AllowPrerelease -Repository $TestRepositoryName
-        Update-Script $PrereleaseTestScript -RequiredVersion "4.0.0-beta2" -AllowPrerelease
+        Update-Script $PrereleaseTestScript -RequiredVersion $PrereleaseScriptLatestPrereleaseVersion -AllowPrerelease
 
         $res = Get-InstalledScript -Name $PrereleaseTestScript -AllowPrerelease
 
         $res | Should Not Be $null
         $res | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $res.Name | Should Be $PrereleaseTestScript
-        $res.Version | Should Match "4.0.0-beta2"
+        $res.Version | Should Match $PrereleaseScriptLatestPrereleaseVersion
         $res.AdditionalMetadata | Should Not Be $null
         $res.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -3388,21 +3378,21 @@ Describe "--- Uninstall-Script ---" -Tags "Script" {
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "false"
 
-        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion "2.0.0-alpha005" -AllowPrerelease
+        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease
         $mod = Get-InstalledScript -Name $scriptName -AllowPrerelease
         $mod | Should Not Be $null
         $mod | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod.Name | Should Be $scriptName
-        $mod.Version | Should Match "2.0.0-alpha005"
+        $mod.Version | Should Match $PrereleaseScriptMiddleVersion
         $mod.AdditionalMetadata | Should Not Be $null
         $mod.AdditionalMetadata.IsPrerelease | Should Match "true"
 
-        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion "4.0.0-beta2" -AllowPrerelease
+        PowerShellGet\Update-Script -Name $scriptName -RequiredVersion $PrereleaseScriptLatestPrereleaseVersion -AllowPrerelease
         $mod2 = Get-InstalledScript -Name $scriptName -AllowPrerelease
         $mod2 | Should Not Be $null
         $mod2 | Measure-Object | ForEach-Object { $_.Count } | Should Be 1
         $mod2.Name | Should Be $scriptName
-        $mod2.Version | Should Match "4.0.0-beta2"
+        $mod2.Version | Should Match $PrereleaseScriptLatestPrereleaseVersion
         $mod2.AdditionalMetadata | Should Not Be $null
         $mod2.AdditionalMetadata.IsPrerelease | Should Match "true"
         
