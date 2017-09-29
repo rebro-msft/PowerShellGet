@@ -11050,7 +11050,10 @@ function Install-PackageUtility
                     {
                         $installedModuleVersion = $InstalledModuleInfo.Version.ToString()
                         if ((Get-Member -InputObject $InstalledModuleInfo -Name PrivateData -ErrorAction SilentlyContinue) -and `
+                            $InstalledModuleInfo.PrivateData -and `
+                            $InstalledModuleInfo.PrivateData.GetType().ToString() -eq "System.Collections.Hashtable" -and `
                             ($InstalledModuleInfo.PrivateData.ContainsKey('PSData')) -and `
+                            $InstalledModuleInfo.PrivateData.PSData.GetType().ToString() -eq "System.Collections.Hashtable" -and `
                             ($InstalledModuleInfo.PrivateData.PSData.ContainsKey('Prerelease')))
                         { 
                             $installedModulePrerelease = $InstalledModuleInfo.PrivateData.PSData.Prerelease 
@@ -11064,7 +11067,7 @@ function Install-PackageUtility
                             $installedModulePrerelease = $null
                         }
 
-                        if ($version -contains '-')
+                        if ($version -match '-')
                         {
                             $galleryModuleVersion,$galleryModulePrerelease = $version -split '-',2
                         }
@@ -14524,9 +14527,8 @@ function Validate-PrereleaseString
                    -ExceptionObject $InfoObject
     }
 
-    # Validate that Version contains at least 3 parts and at most 4 parts
-    $versionPartsCount = $Version.Split('.').Count
-    if ( ($versionPartsCount -lt 3) -or ($versionPartsCount -gt 4))
+    # Validate that Version contains exactly 3 parts
+    if ( -not ($Version.Split('.').Count -eq 3))
     {
         $message = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f $Version
         ThrowError -ExceptionName "System.InvalidOperationException" `

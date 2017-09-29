@@ -36,16 +36,14 @@ Install-NuGetBinaries
 $script:AddedAllUsersInstallPath    = Set-PATHVariableForScriptsInstallLocation -Scope AllUsers
 $script:AddedCurrentUserInstallPath = Set-PATHVariableForScriptsInstallLocation -Scope CurrentUser
 
-$ProgramFilesWindowsPowerShellPath = Microsoft.PowerShell.Management\Join-Path -Path $env:ProgramFiles -ChildPath "WindowsPowerShell"
-$ProgramFilesModulesPath = Microsoft.PowerShell.Management\Join-Path -Path $ProgramFilesWindowsPowerShellPath -ChildPath "Modules"
-$ProgramFilesScriptsPath = Microsoft.PowerShell.Management\Join-Path -Path $ProgramFilesWindowsPowerShellPath -ChildPath "Scripts"
+$script:ProgramFilesModulesPath = Get-AllUsersModulesPath
+$script:MyDocumentsModulesPath = Get-CurrentUserModulesPath
+$null = New-Item -Path $script:MyDocumentsModulesPath -ItemType Directory -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+$script:ProgramFilesScriptsPath = Get-AllUsersScriptsPath 
+$script:MyDocumentsScriptsPath = Get-CurrentUserScriptsPath
+$script:PSGetLocalAppDataPath = Get-PSGetLocalAppDataPath
 
-$MyDocumentsWindowsPowerShellPath = Microsoft.PowerShell.Management\Join-Path -Path $env:USERPROFILE -ChildPath "Documents\WindowsPowerShell"
-$MyDocumentsModulesPath = Microsoft.PowerShell.Management\Join-Path -Path $MyDocumentsWindowsPowerShellPath -ChildPath "Modules"
-$MyDocumentsScriptsPath = Microsoft.PowerShell.Management\Join-Path -Path $MyDocumentsWindowsPowerShellPath -ChildPath "Scripts"
-
-$PSGetLocalAppDataPath = Microsoft.PowerShell.Management\Join-Path -Path $env:LOCALAPPDATA -ChildPath 'Microsoft\Windows\PowerShell\PowerShellGet\'
-$TempPath = ([System.IO.DirectoryInfo]$env:TEMP).FullName
+$script:TempPath = Get-TempPath
 
 # Register test repository
 $TestRepositoryName = "GalleryRolling"
@@ -68,8 +66,10 @@ $RoleCapabilityInPrereleaseTestModule = "Lev1Maintenance"
 
 
 
-
-
+function Test-IfOnPSCore
+{
+    ($PSEdition -eq 'Core')
+}
 
 
 
@@ -91,7 +91,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
 
     BeforeEach {
         # Create temp moduleManifest to be updated
-        $script:TempModulesPath = Join-Path $TempPath "PSGet_$(Get-Random)"
+        $script:TempModulesPath = Join-Path $script:TempPath "PSGet_$(Get-Random)"
         $null = New-Item -Path $script:TempModulesPath -ItemType Directory -Force
         $script:UpdateModuleManifestName = "ContosoPublishModule"
         $script:UpdateModuleManifestBase = Join-Path $script:TempModulesPath $script:UpdateModuleManifestName
@@ -300,6 +300,21 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
         $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     } 
     
+    It UpdateModuleManifestWithPrereleaseStringAndLongModuleVersion {
+        $Prerelease = "alpha001" 
+        $Version = "3.2.1.1"
+
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f $Version
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Update-ModuleManifest"
+
+        $ScriptBlock = {
+            New-ModuleManifest -path $script:testManifestPath
+            Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
+        }
+
+        $ScriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
+    } 
+
     It UpdateModuleManifestWithValidPrereleaseAndModuleVersion {
         $Prerelease = "alpha001" 
         $Version = "3.2.1"
@@ -329,6 +344,8 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
 
 Describe "--- Publish-Module ---" -Tags "Module" {
     
+    if(Test-IfOnPSCore) { return }
+
     BeforeAll {
 
         # Create file-based repository from scratch
@@ -337,8 +354,8 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         $null = New-Item -Path $script:PSGalleryRepoPath -ItemType Directory -Force
     
         # Backup existing repositories config file
-        $script:moduleSourcesFilePath= Join-Path $PSGetLocalAppDataPath "PSRepositories.xml"
-        $script:moduleSourcesBackupFilePath = Join-Path $PSGetLocalAppDataPath "PSRepositories.xml_$(get-random)_backup"
+        $script:moduleSourcesFilePath= Join-Path $script:PSGetLocalAppDataPath "PSRepositories.xml"
+        $script:moduleSourcesBackupFilePath = Join-Path $script:PSGetLocalAppDataPath "PSRepositories.xml_$(get-random)_backup"
         if(Test-Path $script:moduleSourcesFilePath)
         {
             Rename-Item $script:moduleSourcesFilePath $script:moduleSourcesBackupFilePath -Force
@@ -384,7 +401,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 
     AfterEach {
         RemoveItem "$script:PSGalleryRepoPath\*"
-        RemoveItem "$ProgramFilesModulesPath\$script:PublishModuleName"
+        RemoveItem "$script:ProgramFilesModulesPath\$script:PublishModuleName"
         RemoveItem "$script:PublishModuleBase\*"
     }
 
@@ -396,10 +413,10 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module" -NestedModules "$script:PublishModuleName.psm1"
         Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
 
-        #Copy module to $ProgramFilesModulesPath
-        Copy-Item $script:PublishModuleBase $ProgramFilesModulesPath -Recurse -Force
+        #Copy module to $script:ProgramFilesModulesPath
+        Copy-Item $script:PublishModuleBase $script:ProgramFilesModulesPath -Recurse -Force
 
-        Publish-Module -Name $script:PublishModuleName -NuGetApiKey $script:ApiKey -ReleaseNotes "$script:PublishModuleName release notes" -Tags PSGet -LicenseUri "http://$script:PublishModuleName.com/license" -ProjectUri "http://$script:PublishModuleName.com" -WarningAction SilentlyContinue
+        Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ReleaseNotes "$script:PublishModuleName release notes" -Tags PSGet -LicenseUri "http://$script:PublishModuleName.com/license" -ProjectUri "http://$script:PublishModuleName.com" -WarningAction SilentlyContinue
         
         $psgetItemInfo = Find-Module -Name $script:PublishModuleName -RequiredVersion $($version + $prerelease) -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishModuleName
@@ -413,11 +430,11 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         New-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -ModuleVersion $version -Description "$script:PublishModuleName module"  -NestedModules "$script:PublishModuleName.psm1"
         Update-ModuleManifest -Path "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Prerelease $prerelease
 
-        #Copy module to $ProgramFilesModulesPath
-        Copy-Item $script:PublishModuleBase $ProgramFilesModulesPath -Recurse -Force
+        #Copy module to $script:ProgramFilesModulesPath
+        Copy-Item $script:PublishModuleBase $script:ProgramFilesModulesPath -Recurse -Force
         
         $scriptBlock = {
-            Publish-Module -Name $script:PublishModuleName -NuGetApiKey $script:ApiKey -ReleaseNotes "$script:PublishModuleName release notes" -Tags PSGet -LicenseUri "http://$script:PublishModuleName.com/license" -ProjectUri "http://$script:PublishModuleName.com" -WarningAction SilentlyContinue
+            Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ReleaseNotes "$script:PublishModuleName release notes" -Tags PSGet -LicenseUri "http://$script:PublishModuleName.com/license" -ProjectUri "http://$script:PublishModuleName.com" -WarningAction SilentlyContinue
         }
         $scriptBlock | Should Not Throw
         
@@ -817,7 +834,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         $invalidPrereleaseModuleManifestContent = @"
 @{
     # Version number of this module.
-    ModuleVersion = '3.2.1.0.5'
+    ModuleVersion = '3.2.1.1'
 
     # ID used to uniquely identify this module
     GUID = 'e359354f-93ff-449e-8ae1-3173245215bd'
@@ -845,11 +862,13 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 "@
         Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $invalidPrereleaseModuleManifestContent
 
+        $scriptBlock = {
+            Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ErrorVariable ev -ErrorAction SilentlyContinue
+        }
 
-        Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -ErrorVariable ev -ErrorAction SilentlyContinue
-
-        $ev.Count | Should Not Be 0
-        $ev[1].FullyQualifiedErrorId | Should Be "Modules_InvalidManifest,Microsoft.PowerShell.Commands.TestModuleManifestCommand"
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2.1.1'
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Publish-Module"
+        $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
     It "PublishModuleWithValidPrereleaseAndVersion" {
@@ -898,52 +917,6 @@ Describe "--- Publish-Module ---" -Tags "Module" {
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
 
-    It "PublishModuleWithValidPrereleaseAndVersion2" {
-
-        # Create manifest without using Update-ModuleManifest
-        $validPrereleaseModuleManifestContent = @"
-@{
-    # Version number of this module.
-    ModuleVersion = '1.0.0.0'
-
-    # ID used to uniquely identify this module
-    GUID = 'e359354f-93ff-449e-8ae1-3173245215bd'
-
-    # Author of this module
-    Author = 'rebro'
-
-    # Company or vendor of this module
-    CompanyName = 'Unknown'
-
-    # Copyright statement for this module
-    Copyright = '(c) 2017 rebro. All rights reserved.'
-
-    # Description of the functionality provided by this module
-    Description = 'Valid Prerelease module manifest'
-
-    # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
-    PrivateData = @{
-        PSData = @{
-            # Prerelease string, part of Version
-            Prerelease = '-gamma002'
-        } # End of PSData hashtable
-    } # End of PrivateData hashtable
-}
-"@
-        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPrereleaseModuleManifestContent
-
-        $scriptBlock = {
-            Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
-        }
-        $scriptBlock | Should Not Throw
-
-        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion "1.0.0.0-gamma002" -AllowPrerelease
-        $psgetItemInfo.Name | Should Be $script:PublishModuleName
-        $psgetItemInfo.Version | Should Match $($version + $prerelease)
-        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
-        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
-    }
-
     It "PublishModuleWithEmptyPrereleaseFieldShouldSucceed" {
         
         # Create manifest without using Update-ModuleManifest
@@ -976,18 +949,18 @@ Describe "--- Publish-Module ---" -Tags "Module" {
     } # End of PrivateData hashtable
 }
 "@
-                Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPrereleaseModuleManifestContent
-        
-                $scriptBlock = {
-                    Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
-                }
-                $scriptBlock | Should Not Throw
-        
-                $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion "1.0.0" -AllowPrerelease
-                $psgetItemInfo.Name | Should Be $script:PublishModuleName
-                $psgetItemInfo.Version | Should Match $version
-                $psgetItemInfo.AdditionalMetadata | Should Not Be $null
-                $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
+        Set-Content "$script:PublishModuleBase\$script:PublishModuleName.psd1" -Value $validPrereleaseModuleManifestContent
+
+        $scriptBlock = {
+            Publish-Module -Path $script:PublishModuleBase -NuGetApiKey $script:ApiKey -WarningAction SilentlyContinue
+        }
+        $scriptBlock | Should Not Throw
+
+        $psgetItemInfo = Find-Module $script:PublishModuleName -RequiredVersion "1.0.0" -AllowPrerelease
+        $psgetItemInfo.Name | Should Be $script:PublishModuleName
+        $psgetItemInfo.Version | Should Match $version
+        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
+        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "false"
     }
 }
 
@@ -1046,49 +1019,6 @@ Describe "--- Find-Module ---" -Tags "Module" {
         $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Module"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
-
-    <#
-    It FindModuleAllowPrereleaseIncludeDependencies {
-
-        # try to get only one prerelease version
-        $resultsSingle = Find-Module -Name $PrereleaseTestModule -Repository $TestRepositoryName -AllowPrerelease -MinimumVersion "0.1" -MaximumVersion "1.0" 
-        $resultsSingle.Count | Should Be 1
-        $resultsSingle.Name | Should Be $PrereleaseTestModule
-
-        # try to get only one prerelease version and its dependencies
-        $resultsDependencies = Find-Module -Name $PrereleaseTestModule -Repository $TestRepositoryName -AllowPrerelease -MinimumVersion "0.1" -MaximumVersion "1.0"  -IncludeDependencies
-        $resultsDependencies.Count | Should BeGreaterThan $DependencyModuleNames.Count+1
-
-        # Check that it returns all dependencies and at least one dependency is a prerelease
-        $DependencyModuleNames = $resultsSingle.Dependencies.Name
-        $DependencyModuleNames | ForEach-Object { $resultsDependencies.Name -Contains $_.Name | Should Be $true }
-        $resultsDependencies | Where-Object { ($_.Name -ne $PrereleaseTestModule) -and ($_.AdditionalMetadata.IsPrerelease -eq $true) } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
-    }
-    #>
-
-    It FindModuleByNameWithAllowPrereleaseDownlevel {
-        $script = {
-            Find-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
 Describe "--- Find-DscResource ---" -Tags "Module" {
@@ -1453,36 +1383,6 @@ Describe "--- Install-Module ---" -Tags "Module" {
         }
         $script | Should Throw
     }
-
-
-
-    # Downlevel Tests
-    #-----------------
-
-    It "InstallModuleByNameWithAllowPrereleaseDownlevel" {
-        $script = {
-            Install-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "InstallSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Install-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "InstallSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Install-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-    
 }
 
 Describe "--- Save-Module ---" -Tags "Module" {
@@ -1501,7 +1401,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     #--------------
     
     It "PipeFindToSaveModuleByNameAllowPrerelease" {
-        Find-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
@@ -1513,7 +1413,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not Be $null
@@ -1526,16 +1426,15 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
     It "PipeFindToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         }
         $script | Should Throw
     }
-    
 
     # Find-Command | Save-Module
     #-----------------------------
     It "PipeFindCommandToSaveModuleByNameAllowPrerelease" {
-        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
@@ -1547,7 +1446,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindCommandToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
@@ -1560,7 +1459,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
     It "PipeFindCommandToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-Command -Name $CommandInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1568,7 +1467,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     # Find-DscResource | Save-Module
     #--------------------------------
     It "PipeFindDscResourceToSaveModuleByNameAllowPrerelease" {
-        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
@@ -1580,7 +1479,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindDscResourceToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
@@ -1593,7 +1492,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
     It "PipeFindDscResourceToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-DscResource -Name $DscResourceInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         }
         $script | Should Throw
     }
@@ -1601,7 +1500,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     # Find-RoleCapability | Save-Module
     #-----------------------------------
     It "PipeFindRoleCapabilityToSaveModuleByNameAllowPrerelease" {
-        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
@@ -1613,7 +1512,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 
     It "PipeFindRoleCapabilityToSaveModuleSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+        Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $script:DscTestModule
 
         $res | Should Not Be $null
@@ -1626,18 +1525,16 @@ Describe "--- Save-Module ---" -Tags "Module" {
 
     It "PipeFindRoleCapabilityToSaveModuleSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $MyDocumentsModulesPath
+            Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -ModuleName $DscTestModule -RequiredVersion $DscTestModuleMiddleVersion -Repository $TestRepositoryName | Save-Module -LiteralPath $script:MyDocumentsModulesPath
         }
         $script | Should Throw
     }
-    
-
 
     # Regular Save Tests 
     #-----------------------
     
     It "SavePrereleaseModuleByName" {
-        Save-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+        Save-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not BeNullOrEmpty
@@ -1646,7 +1543,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithAllowPrerelease" {
-        Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+        Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $script:MyDocumentsModulesPath
         $res = Get-InstalledModule -Name $PrereleaseTestModule
 
         $res | Should Not BeNullOrEmpty
@@ -1658,40 +1555,10 @@ Describe "--- Save-Module ---" -Tags "Module" {
     
     It "SaveSpecificPrereleaseModuleVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
+            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName -LiteralPath $script:MyDocumentsModulesPath
         }
         $script | Should Throw
     }
-
-
-
-    # Downlevel Tests
-    #-----------------
-    
-    It "SaveModuleByNameWithAllowPrereleaseDownlevel" {
-        $script = {
-            Save-Module -Name $PrereleaseTestModule -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "SaveSpecificPrereleaseModuleVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "SaveSpecificPrereleaseModuleVersionByNameWithAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Save-Module -Name $PrereleaseTestModule -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsModulesPath
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-    
 }
 
 Describe "--- Update-Module ---" -Tags "Module" {
@@ -2229,7 +2096,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
     .DESCRIPTION 
     Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
     .VERSION 
-    3.2.1.0.5-alpha001
+    3.2.1.1-alpha001
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
@@ -2245,8 +2112,8 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
             Test-ScriptFileInfo -Path $scriptFilePath
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidVersion -f '3.2.1.0.5-alpha001'
-        $expectedFullyQualifiedErrorId = "InvalidVersion,Test-ScriptFileInfo"
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2.1.1'
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
@@ -2277,35 +2144,6 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
         
         $testScriptInfo = Test-ScriptFileInfo -Path $scriptFilePath
         $testScriptInfo.Version | Should -Match "3.2.1-alpha001"
-    }
-
-    # Purpose: Test a script file info with a valid Prerelease string and a version with sufficient parts.
-    #
-    # Action: Test-ScriptFileInfo [path] -Version 3.2.1.0-gamma001
-    #
-    # Expected Result: Test-ScriptFileInfo should successfully validate the version field.
-    #
-    It "TestScriptFileWithValidPrereleaseAndVersion2" {
-        $scriptFilePath = Join-Path -Path $script:TempScriptsPath -ChildPath "Get-ProcessScript.ps1"
-        Set-Content -Path $scriptFilePath -Value @"
-<#PSScriptInfo
-    .DESCRIPTION 
-    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
-    .VERSION 
-    3.2.1.0-gamma001
-    .GUID 
-    35eb535b-7e54-4412-a58b-8a0c588c0b30
-    .AUTHOR 
-    Rebecca Roenitz @RebRo
-    .TAGS 
-    ManualScriptInfo
-    .RELEASENOTES
-    Release notes for this script file.
-#>
-"@
-        
-        $testScriptInfo = Test-ScriptFileInfo -Path $scriptFilePath
-        $testScriptInfo.Version | Should -Match "3.2.1.0-gamma001"
     }
 }
 
@@ -2399,14 +2237,14 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
     }
     
     It "UpdateScriptFileWithPrereleaseStringAndLongVersion" {
-        $Version = "3.2.1.0.5-alpha001"
+        $Version = "3.2.1.1-alpha001"
 
         $ScriptBlock = {
             Update-ScriptFileInfo -Path $script:ScriptFilePath -Version $Version
         }
 
-        $expectedErrorMessage = $LocalizedData.InvalidVersion -f $Version
-        $expectedFullyQualifiedErrorId = "InvalidVersion,Test-ScriptFileInfo"
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2.1.1'
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
 
@@ -2433,6 +2271,8 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
 
 Describe "--- Publish-Script ---" -Tags "Script" {
     
+    if(Test-IfOnPSCore) { return }
+
     BeforeAll {
 
         # Create file-based repository from scratch
@@ -2847,7 +2687,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
     .DESCRIPTION 
     Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
     .VERSION 
-    3.2.1.0.5-alpha001
+    3.2.1.1-alpha001
     .GUID 
     35eb535b-7e54-4412-a58b-8a0c588c0b30
     .AUTHOR 
@@ -2859,8 +2699,8 @@ Describe "--- Publish-Script ---" -Tags "Script" {
 #>
 "@
         
-        $expectedErrorMessage = "Cannot convert value '3.2.1.0.5-alpha001' to type 'System.Version'."
-        $expectedFullyQualifiedErrorId = "InvalidVersion,Test-ScriptFileInfo"
+        $expectedErrorMessage = $LocalizedData.IncorrectVersionPartsCountForPrereleaseStringUsage -f '3.2.1.1'
+        $expectedFullyQualifiedErrorId = "IncorrectVersionPartsCountForPrereleaseStringUsage,Test-ScriptFileInfo"
 
         $ScriptBlock = {
             Publish-Script -Path $script:PublishScriptFilePath
@@ -2891,33 +2731,6 @@ Describe "--- Publish-Script ---" -Tags "Script" {
         $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion "3.2.1-alpha001" -AllowPrerelease
         $psgetItemInfo.Name | Should Be $script:PublishScriptName
         $psgetItemInfo.Version | Should -Match "3.2.1-alpha001"
-        $psgetItemInfo.AdditionalMetadata | Should Not Be $null
-        $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
-    }
-
-    It "PublishScriptWithValidPrereleaseAndVersion2" {
-        Set-Content -Path $script:PublishScriptFilePath -Value @"
-<#PSScriptInfo
-    .DESCRIPTION 
-    Performs a collection of admin tasks (Update, Virus Scan, Clean-up, Repair & Defrag) that might speed-up a computers performance.
-    .VERSION 
-    3.2.1.0-gamma001
-    .GUID 
-    35eb535b-7e54-4412-a58b-8a0c588c0b30
-    .AUTHOR 
-    Rebecca Roenitz @RebRo
-    .TAGS 
-    ManualScriptInfo
-    .RELEASENOTES
-    Release notes for this script file.
-#>
-"@
-        
-        Publish-Script -Path $script:PublishScriptFilePath
-
-        $psgetItemInfo = Find-Script $script:PublishScriptName -RequiredVersion "3.2.1.0-gamma001" -AllowPrerelease
-        $psgetItemInfo.Name | Should Be $script:PublishScriptName
-        $psgetItemInfo.Version | Should -Match "3.2.1.0-gamma001"
         $psgetItemInfo.AdditionalMetadata | Should Not Be $null
         $psgetItemInfo.AdditionalMetadata.IsPrerelease | Should Match "true"
     }
@@ -2979,58 +2792,6 @@ Describe "--- Find-Script ---" -Tags "Script" {
         $expectedFullyQualifiedErrorId = "AllowPrereleaseRequiredToUsePrereleaseStringInVersion,Find-Script"
         $scriptBlock | Should -Throw $expectedErrorMessage -ErrorId $expectedFullyQualifiedErrorId
     }
-
-    <#
-    # Purpose: Validate Find-Script -AllowPrerelease -IncludeDependencies
-    #
-    # Action: Find-Script -AllowPrerelease -IncludeDependencies
-    #
-    # Expected Result: Find-Script -AllowPrerelease -IncludeDependencies should return the prerelease versions of the script and its dependencies.
-    #
-    It FindScriptAllowPrereleaseIncludeDependencies {
-
-        # try to get only one prerelease version
-        $resultsSingle = Find-Script -Name $PrereleaseTestScript -Repository $TestRepositoryName -AllowPrerelease -MinimumVersion "0.1" -MaximumVersion "1.0" 
-        $resultsSingle.Count | Should Be 1
-        $resultsSingle.Name | Should Be $PrereleaseTestScript
-
-        # try to get only one prerelease version and its dependencies
-        $resultsDependencies = Find-Script -Name $PrereleaseTestScript -Repository $TestRepositoryName -AllowPrerelease -MinimumVersion "0.1" -MaximumVersion "1.0"  -IncludeDependencies
-        $resultsDependencies.Count | Should BeGreaterThan $DependencyScriptNames.Count+1
-
-        # Check that it returns all dependencies and at least one dependency is a prerelease
-        $DependencyScriptNames = $resultsSingle.Dependencies.Name
-        $DependencyScriptNames | ForEach-Object { $resultsDependencies.Name -Contains $_.Name | Should Be $true }
-        $resultsDependencies | Where-Object { ($_.Name -ne $PrereleaseTestScript) -and ($_.AdditionalMetadata.IsPrerelease -eq $true) } | Measure-Object | ForEach-Object { $_.Count } | Should BeGreaterThan 0
-    }
-    #>
-
-    
-    # Downlevel Tests
-    #-----------------
-    It FindScriptByNameWithAllowPrereleaseDownlevel {
-        $script = {
-            Find-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseModuleMiddleVersion -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It FindSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel {
-        $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseModuleMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
 Describe "--- Install-Script ---" -Tags "Script" {
@@ -3040,8 +2801,8 @@ Describe "--- Install-Script ---" -Tags "Script" {
     }
 
     AfterEach {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     } 
 
 
@@ -3079,8 +2840,6 @@ Describe "--- Install-Script ---" -Tags "Script" {
         $script | Should Throw
     }
     
-
-
     # Regular Install Tests 
     #-----------------------
     
@@ -3108,56 +2867,26 @@ Describe "--- Install-Script ---" -Tags "Script" {
         }
         $script | Should Throw
     }
-
-
-
-    # Downlevel Tests
-    #-----------------
-
-    It "InstallScriptByNameWithAllowPrereleaseDownlevel" {
-        $script = {
-            Install-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "InstallSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Install-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "InstallSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Install-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
 Describe "--- Save-Script ---" -Tags "Script" {
 
     BeforeAll {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     }
 
     AfterEach {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     } 
-
 
     # Piping tests 
     #--------------
     It "PipeFindToSaveScriptByNameAllowPrerelease" {
-        Find-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
+        Find-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName | Save-Script -LiteralPath $script:MyDocumentsScriptsPath
 
-        $scriptPath = Join-Path -Path $MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
+        $scriptPath = Join-Path -Path $script:MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
 
         Test-Path -Path "$scriptPath.ps1" -PathType Leaf | Should Be $true
 
@@ -3168,9 +2897,9 @@ Describe "--- Save-Script ---" -Tags "Script" {
     }
     
     It "PipeFindToSaveScriptSpecificPrereleaseVersionByNameWithAllowPrerelease" {
-        Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
+        Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName | Save-Script -LiteralPath $script:MyDocumentsScriptsPath
 
-        $scriptPath = Join-Path -Path $MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
+        $scriptPath = Join-Path -Path $script:MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
 
         Test-Path -Path "$scriptPath.ps1" -PathType Leaf | Should Be $true
 
@@ -3182,18 +2911,17 @@ Describe "--- Save-Script ---" -Tags "Script" {
 
     It "PipeFindToSaveScriptSpecificPrereleaseVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName | Save-Script -LiteralPath $MyDocumentsScriptsPath
+            Find-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName | Save-Script -LiteralPath $script:MyDocumentsScriptsPath
         }
         $script | Should Throw
     }
     
-    
     # Regular Save Tests 
     #-----------------------
     It "SavePrereleaseScriptByName" {
-        Save-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+        Save-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $script:MyDocumentsScriptsPath
 
-        $scriptPath = Join-Path -Path $MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
+        $scriptPath = Join-Path -Path $script:MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
 
         Test-Path -Path "$scriptPath.ps1" -PathType Leaf | Should Be $true
 
@@ -3204,9 +2932,9 @@ Describe "--- Save-Script ---" -Tags "Script" {
     }
     
     It "SaveSpecificPrereleaseScriptVersionByNameWithAllowPrerelease" {
-        Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+        Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $script:MyDocumentsScriptsPath
         
-        $scriptPath = Join-Path -Path $MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
+        $scriptPath = Join-Path -Path $script:MyDocumentsScriptsPath -ChildPath $PrereleaseTestScript
 
         Test-Path -Path "$scriptPath.ps1" -PathType Leaf | Should Be $true
 
@@ -3218,49 +2946,22 @@ Describe "--- Save-Script ---" -Tags "Script" {
     
     It "SaveSpecificPrereleaseScriptVersionByNameWithoutAllowPrerelease" {
         $script = {
-            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
+            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName -LiteralPath $script:MyDocumentsScriptsPath
         }
         $script | Should Throw
     }
-
-
-    # Downlevel Tests
-    #-----------------
-    It "SaveScriptByNameWithAllowPrereleaseDownlevel" {
-        $script = {
-            Save-Script -Name $PrereleaseTestScript -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "SaveSpecificPrereleaseScriptVersionByNameWithoutAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
-
-    It "SaveSpecificPrereleaseScriptVersionByNameWithAllowPrereleaseFlagDownlevel" {
-        $script = {
-            Save-Script -Name $PrereleaseTestScript -RequiredVersion $PrereleaseScriptMiddleVersion -AllowPrerelease -Repository $TestRepositoryName -LiteralPath $MyDocumentsScriptsPath
-        }
-        $script | Should Throw
-
-    } -Skip:$($PSVersionTable.PSVersion -ge '5.0.0')
 }
 
 Describe "--- Update-Script ---" -Tags "Script" {
     
     BeforeAll {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     }
 
     AfterEach {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     } 
 
     # Updated to latest release version by default: When release version is installed (ex. 1.0.0 --> 3.0.0)
@@ -3356,13 +3057,13 @@ Describe "--- Update-Script ---" -Tags "Script" {
 
 Describe "--- Uninstall-Script ---" -Tags "Script" {
     BeforeAll {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     }
 
     AfterEach {
-        PSGetTestUtils\RemoveItem -path $(Join-Path $ProgramFilesScriptsPath "TestScript.ps1")
-        PSGetTestUtils\RemoveItem -path $(Join-Path $MyDocumentsScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
+        PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
     } 
 
     It UninstallPrereleaseScript {
