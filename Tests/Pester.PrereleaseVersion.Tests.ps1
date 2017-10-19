@@ -79,15 +79,15 @@ function Test-IfOnPSCore
 #    MODULE CMDLETS
 #========================
 
-Describe "--- New-ModuleManifest ---" -Tags "Module" {
+Describe "--- New-ModuleManifest ---" -Tags 'Module','BVT','InnerLoop' {
     # N/A - implementation and tests in PowerShell code.
 }
 
-Describe "--- Test-ModuleManifest ---" -Tags "Module" {
+Describe "--- Test-ModuleManifest ---" -Tags 'Module','BVT','InnerLoop' {
     # N/A - implementation and tests in PowerShell code.
 }
 
-Describe "--- Update-ModuleManifest ---" -Tags "Module" {
+Describe "--- Update-ModuleManifest ---" -Tags 'Module','BVT','InnerLoop' {
 
     BeforeEach {
         # Create temp moduleManifest to be updated
@@ -329,11 +329,11 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
     } 
 
     It UpdateModuleManifestWithValidPrereleaseAndModuleVersion2 {
-        $Prerelease = "-gamma001" 
+        $Prerelease = "gamma001" 
         $Version = "3.2.1"
 
         New-ModuleManifest -path $script:testManifestPath 
-        Update-ModuleManifest -Path $script:testManifestPath -Prerelease $Prerelease -ModuleVersion $Version -Confirm:$false
+        Update-ModuleManifest -Path $script:testManifestPath -Prerelease "-$Prerelease" -ModuleVersion $Version -Confirm:$false
 
         $newModuleInfo = Test-ModuleManifest -Path $script:testManifestPath
 
@@ -342,7 +342,7 @@ Describe "--- Update-ModuleManifest ---" -Tags "Module" {
     }
 }
 
-Describe "--- Publish-Module ---" -Tags "Module" {
+Describe "--- Publish-Module ---" -Tags 'Module','P1','OuterLoop' {
     
     if(Test-IfOnPSCore) { return }
 
@@ -965,7 +965,7 @@ Describe "--- Publish-Module ---" -Tags "Module" {
 }
 
 
-Describe "--- Find-Module ---" -Tags "Module" {
+Describe "--- Find-Module ---" -Tags 'Module','P1','OuterLoop' {
 
     It FindModuleReturnsLatestStableVersion {
         $psgetModuleInfo = Find-Module -Name $PrereleaseTestModule -Repository $TestRepositoryName
@@ -1021,7 +1021,7 @@ Describe "--- Find-Module ---" -Tags "Module" {
     }
 }
 
-Describe "--- Find-DscResource ---" -Tags "Module" {
+Describe "--- Find-DscResource ---" -Tags 'Module','BVT','InnerLoop' {
 
     It FindDscResourceReturnsLatestStableVersion {
         $psgetCommandInfo = Find-DscResource -Name $DscResourceInPrereleaseTestModule -Repository $TestRepositoryName
@@ -1083,7 +1083,7 @@ Describe "--- Find-DscResource ---" -Tags "Module" {
     }
 }
 
-Describe "--- Find-Command ---" -Tags "Module" {
+Describe "--- Find-Command ---" -Tags 'Module','BVT','InnerLoop' {
 
     It FindCommandReturnsLatestStableVersion {
         $psgetCommandInfo = Find-Command -Name $CommandInPrereleaseTestModule -Repository $TestRepositoryName
@@ -1146,7 +1146,7 @@ Describe "--- Find-Command ---" -Tags "Module" {
 
 }
 
-Describe "--- Find-RoleCapability ---" -Tags "Module" {
+Describe "--- Find-RoleCapability ---" -Tags 'Module','BVT','InnerLoop' {
     
     It FindRoleCapabilityReturnsLatestStableVersion {
         $psgetCommandInfo = Find-RoleCapability -Name $RoleCapabilityInPrereleaseTestModule -Repository $TestRepositoryName
@@ -1208,7 +1208,7 @@ Describe "--- Find-RoleCapability ---" -Tags "Module" {
     }
 }
 
-Describe "--- Install-Module ---" -Tags "Module" {
+Describe "--- Install-Module ---" -Tags 'Module','P1','OuterLoop' {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1385,7 +1385,7 @@ Describe "--- Install-Module ---" -Tags "Module" {
     }
 }
 
-Describe "--- Save-Module ---" -Tags "Module" {
+Describe "--- Save-Module ---" -Tags 'Module','BVT','InnerLoop' {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1561,7 +1561,7 @@ Describe "--- Save-Module ---" -Tags "Module" {
     }
 }
 
-Describe "--- Update-Module ---" -Tags "Module" {
+Describe "--- Update-Module ---" -Tags 'Module','BVT','InnerLoop' {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1663,7 +1663,7 @@ Describe "--- Update-Module ---" -Tags "Module" {
     }
 }
 
-Describe "--- Uninstall-Module ---" -Tags "Module" {
+Describe "--- Uninstall-Module ---" -Tags 'Module','BVT','InnerLoop' {
     
     BeforeAll {
         PSGetTestUtils\Uninstall-Module TestPackage
@@ -1869,11 +1869,11 @@ Describe "--- Uninstall-Module ---" -Tags "Module" {
 #     SCRIPT CMDLETS
 #========================
 
-Describe "--- New-ScriptFileInfo ---" -Tags "Script" {
+Describe "--- New-ScriptFileInfo ---" -Tags 'Script','BVT','InnerLoop' {
     # N/A - tested below
 }
 
-Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
+Describe "--- Test-ScriptFileInfo ---" -Tags 'Script','BVT','InnerLoop' {
     
     BeforeAll {
         # Create temp module to be published
@@ -2147,7 +2147,7 @@ Describe "--- Test-ScriptFileInfo ---" -Tags "Script" {
     }
 }
 
-Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
+Describe "--- Update-ScriptFileInfo ---" -Tags 'Script','BVT','InnerLoop' {
     
     BeforeAll {
         Get-InstalledScript -Name Fabrikam-ServerScript -ErrorAction SilentlyContinue | Uninstall-Script -Force
@@ -2269,7 +2269,7 @@ Describe "--- Update-ScriptFileInfo ---" -Tags "Script" {
     }
 }
 
-Describe "--- Publish-Script ---" -Tags "Script" {
+Describe "--- Publish-Script ---" -Tags 'Script','P1','OuterLoop' {
     
     if(Test-IfOnPSCore) { return }
 
@@ -2736,7 +2736,7 @@ Describe "--- Publish-Script ---" -Tags "Script" {
     }
 }
 
-Describe "--- Find-Script ---" -Tags "Script" {
+Describe "--- Find-Script ---" -Tags 'Script','P1','OuterLoop' {
     
     # Find-Script Tests
     #-------------------
@@ -2794,7 +2794,7 @@ Describe "--- Find-Script ---" -Tags "Script" {
     }
 }
 
-Describe "--- Install-Script ---" -Tags "Script" {
+Describe "--- Install-Script ---" -Tags 'Script','P1','OuterLoop' {
     
     BeforeAll {
         Get-InstalledScript -Name "TestScript" -ErrorAction SilentlyContinue | Uninstall-Script -Force
@@ -2869,7 +2869,7 @@ Describe "--- Install-Script ---" -Tags "Script" {
     }
 }
 
-Describe "--- Save-Script ---" -Tags "Script" {
+Describe "--- Save-Script ---" -Tags 'Script','BVT','InnerLoop' {
 
     BeforeAll {
         PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
@@ -2952,7 +2952,7 @@ Describe "--- Save-Script ---" -Tags "Script" {
     }
 }
 
-Describe "--- Update-Script ---" -Tags "Script" {
+Describe "--- Update-Script ---" -Tags 'Script','BVT','InnerLoop' {
     
     BeforeAll {
         PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
@@ -3055,7 +3055,7 @@ Describe "--- Update-Script ---" -Tags "Script" {
     }
 }
 
-Describe "--- Uninstall-Script ---" -Tags "Script" {
+Describe "--- Uninstall-Script ---" -Tags 'Script','BVT','InnerLoop' {
     BeforeAll {
         PSGetTestUtils\RemoveItem -path $(Join-Path $script:ProgramFilesScriptsPath "TestScript.ps1")
         PSGetTestUtils\RemoveItem -path $(Join-Path $script:MyDocumentsScriptsPath "TestScript.ps1")
