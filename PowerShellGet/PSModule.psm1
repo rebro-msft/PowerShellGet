@@ -1187,15 +1187,16 @@ function Publish-Module
                 $moduleInfoPrerelease = $moduleInfo.PrivateData.PSData.Prerelease
             }
 
-            $moduleInfoVersion,$moduleInfoPrerelease,$moduleInfoFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $moduleInfo.Version `
-                                                                                                                              -Prerelease $moduleInfoPrerelease `
-                                                                                                                              -CallerPSCmdlet $PSCmdlet
+            $result = ValidateAndGet-VersionPrereleaseStrings -Version $moduleInfo.Version -Prerelease $moduleInfoPrerelease -CallerPSCmdlet $PSCmdlet
             if (-not $result)
             {
                 # ValidateAndGet-VersionPrereleaseStrings throws the error.
                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                 return
             }
+            $moduleInfoVersion = $result["Version"]
+            $moduleInfoPrerelease = $result["Prerelease"]
+            $moduleInfoFullVersion = $result["FullVersion"]
 
             $FindParameters = @{
                 Name = $moduleName
@@ -1236,14 +1237,16 @@ function Publish-Module
 
             if($currentPSGetItemInfo)
             {
-                $currentPSGetItemVersion,$currentPSGetItemPrereleaseString,$currentPSGetItemFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $currentPSGetItemInfo.Version -CallerPSCmdlet $PSCmdlet
-
+                $result = ValidateAndGet-VersionPrereleaseStrings -Version $currentPSGetItemInfo.Version -CallerPSCmdlet $PSCmdlet
                 if (-not $result)
-                {
+                {                
                     # ValidateAndGet-VersionPrereleaseStrings throws the error.
                     # returning to avoid further execution when different values are specified for -ErrorAction parameter
                     return
                 }
+                $currentPSGetItemVersion = $result["Version"]
+                $currentPSGetItemPrereleaseString = $result["Prerelease"]
+                $currentPSGetItemFullVersion = $result["FullVersion"]
 
                 if($currentPSGetItemVersion -eq $moduleInfoVersion)
                 {
@@ -2949,13 +2952,17 @@ function Publish-Script
         }
         
         $scriptName = $PSScriptInfo.Name
-        $scriptVersion,$scriptPrerelease,$scriptFullVersion,$scriptResult = ValidateAndGet-VersionPrereleaseStrings -Version $PSScriptInfo.Version -CallerPSCmdlet $PSCmdlet
-        if (-not $scriptResult)
+
+        $result = ValidateAndGet-VersionPrereleaseStrings -Version $PSScriptInfo.Version -CallerPSCmdlet $PSCmdlet
+        if (-not $result)
         {
             # ValidateAndGet-VersionPrereleaseStrings throws the error.
             # returning to avoid further execution when different values are specified for -ErrorAction parameter
             return
         }
+        $scriptVersion = $result["Version"]
+        $scriptPrerelease = $result["Prerelease"]
+        $scriptFullVersion = $result["FullVersion"]
 
         # Copy the source script file to temp location to publish
         $tempScriptPath = Microsoft.PowerShell.Management\Join-Path -Path $script:TempPath `
@@ -3014,13 +3021,16 @@ function Publish-Script
 
             if($currentPSGetItemInfo)
             {
-                $galleryScriptVersion,$galleryScriptPrerelease,$galleryScriptFullVersion,$galleryResult = ValidateAndGet-VersionPrereleaseStrings -Version $currentPSGetItemInfo.Version -CallerPSCmdlet $PSCmdlet
-                if (-not $galleryResult)
+                $result = ValidateAndGet-VersionPrereleaseStrings -Version $currentPSGetItemInfo.Version -CallerPSCmdlet $PSCmdlet
+                if (-not $result)
                 {
                     # ValidateAndGet-VersionPrereleaseStrings throws the error.
                     # returning to avoid further execution when different values are specified for -ErrorAction parameter
                     return
                 }
+                $galleryScriptVersion = $result["Version"]
+                $galleryScriptPrerelease = $result["Prerelease"]
+                $galleryScriptFullVersion = $result["FullVersion"]
 
                 if($galleryScriptFullVersion -eq $scriptFullVersion)
                 {
@@ -5172,7 +5182,7 @@ function Test-ScriptFileInfo
 
         if ($PSScriptInfo.Version -match '-')
         {
-            $scriptInfoVersion,$scriptInfoPrerelease,$scriptInfoFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $PSScriptInfo.Version  -CallerPSCmdlet $PSCmdlet
+            $result = ValidateAndGet-VersionPrereleaseStrings -Version $PSScriptInfo.Version  -CallerPSCmdlet $PSCmdlet
             if (-not $result)
             {
                 # ValidateAndGet-VersionPrereleaseStrings throws the error.
@@ -5336,8 +5346,7 @@ function New-ScriptFileInfo
         }
         else 
         {
-            $validatedVersion,$validatedPrerelease,$validatedFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $Version -CallerPSCmdlet $PSCmdlet
-            
+            $result = ValidateAndGet-VersionPrereleaseStrings -Version $Version -CallerPSCmdlet $PSCmdlet
             if (-not $result)
             {
                 # ValidateAndGet-VersionPrereleaseStrings throws the error. 
@@ -5643,8 +5652,7 @@ function Update-ScriptFileInfo
             }
             else 
             {
-                $validatedVersion,$validatedPrerelease,$validatedFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $Version -CallerPSCmdlet $PSCmdlet
-                
+                $result = ValidateAndGet-VersionPrereleaseStrings -Version $Version -CallerPSCmdlet $PSCmdlet
                 if (-not $result)
                 {
                     # ValidateAndGet-VersionPrereleaseStrings throws the error. 
@@ -6800,17 +6808,17 @@ function Validate-VersionParameters
     
     if ($MinimumVersion)
     {
-        $validatedMinVersion,$validatedMinPrerelease,$validatedMinFullVersion,$minResult = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
+        $minResult = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
         # ValidateAndGet-VersionPrereleaseStrings will throw error if issue is found
     }
     if ($MaximumVersion)
     {
-        $validatedMaxVersion,$validatedMaxPrerelease,$validatedMaxFullVersion,$maxResult = ValidateAndGet-VersionPrereleaseStrings -Version $MaximumVersion -CallerPSCmdlet $PSCmdlet
+        $maxResult = ValidateAndGet-VersionPrereleaseStrings -Version $MaximumVersion -CallerPSCmdlet $PSCmdlet
         # ValidateAndGet-VersionPrereleaseStrings will throw error if issue is found
     }
     if ($RequiredVersion)
     {
-        $validatedReqVersion,$validatedReqPrerelease,$validatedReqFullVersion,$reqResult = ValidateAndGet-VersionPrereleaseStrings -Version $RequiredVersion -CallerPSCmdlet $PSCmdlet
+        $reqResult = ValidateAndGet-VersionPrereleaseStrings -Version $RequiredVersion -CallerPSCmdlet $PSCmdlet
         # ValidateAndGet-VersionPrereleaseStrings will throw error if issue is found
     }
 
@@ -8942,13 +8950,16 @@ function ValidateAndAdd-PSScriptInfoEntry
         # Validate the property value and also use proper key name as users can specify the property name in any case.
         $script:Version {
                             $KeyName = $script:Version
-                            $Version,$Prerelease,$fullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $Value -CallerPSCmdlet $CallerPSCmdlet
+                            $result = ValidateAndGet-VersionPrereleaseStrings -Version $Value -CallerPSCmdlet $CallerPSCmdlet
                             if (-not $result)
                             {
                                 # ValidateAndGet-VersionPrereleaseStrings throws the error.
                                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                                 return
                             }
+                            $Version = $result["Version"]
+                            $Prerelease = $result["Prerelease"]
+                            $fullVersion = $result["FullVersion"]
                             $Value = if ($Prerelease) { $fullVersion } else { $Version }
                             break
                         }
@@ -10716,14 +10727,16 @@ function Install-PackageUtility
         $sourceLocation= $parts[3]
         $artifactType = $parts[4]
 
-        $galleryItemVersion,$galleryItemPrerelease,$galleryItemFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $version -CallerPSCmdlet $PSCmdlet
+        $result = ValidateAndGet-VersionPrereleaseStrings -Version $version -CallerPSCmdlet $PSCmdlet
         if (-not $result)
         {
             # ValidateAndGet-VersionPrereleaseStrings throws the error. 
             # returning to avoid further execution when different values are specified for -ErrorAction parameter
             return
         }
-
+        $galleryItemVersion = $result["Version"]
+        $galleryItemPrerelease = $result["Prerelease"]
+        $galleryItemFullVersion = $result["FullVersion"]
 
         # The default destination location for Modules and Scripts is ProgramFiles path
         $scriptDestination = $script:ProgramFilesScriptsPath
@@ -10948,13 +10961,16 @@ function Install-PackageUtility
                     $installedModPrerelease = $InstalledModuleInfo.PrivateData.PSData.Prerelease 
                 }
 
-                $installedModuleVersion,$installedModulePrerelease,$installedModuleFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledModuleInfo.Version -Prerelease $installedModPrerelease -CallerPSCmdlet $PSCmdlet
+                $result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledModuleInfo.Version -Prerelease $installedModPrerelease -CallerPSCmdlet $PSCmdlet
                 if (-not $result)
                 {
                     # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                     # returning to avoid further execution when different values are specified for -ErrorAction parameter
                     return
                 }
+                $installedModuleVersion = $result["Version"]
+                $installedModulePrerelease = $result["Prerelease"]
+                $installedModuleFullVersion = $result["FullVersion"]
 
                 if($RequiredVersion -and (Test-ModuleSxSVersionSupport))
                 {
@@ -10970,13 +10986,16 @@ function Install-PackageUtility
                 {
                     if(-not $installUpdate)
                     {
-                        $minVersion,$minPrerelease,$minFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
+                        $result = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
                         if (-not $result)
                         {
                             # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                             # returning to avoid further execution when different values are specified for -ErrorAction parameter
                             return
                         }
+                        $minVersion = $result["Version"]
+                        $minPrerelease = $result["Prerelease"]
+                        $minFullVersion = $result["FullVersion"]
 
                         if( (-not $MinimumVersion -and ($galleryItemFullVersion -ne $InstalledModuleFullVersion)) -or 
                             ($MinimumVersion -and (Compare-PrereleaseVersions -FirstItemVersion $installedModuleVersion `
@@ -11032,25 +11051,30 @@ function Install-PackageUtility
 
             if(-not $Force -and $InstalledScriptInfo)
             {
-                $installedScriptInfoVersion,$installedScriptInfoPrerelease,$installedScriptFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledScriptInfo.Version -CallerPSCmdlet $PSCmdlet
+                $result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledScriptInfo.Version -CallerPSCmdlet $PSCmdlet
                 if (-not $result)
                 {
                     # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                     # returning to avoid further execution when different values are specified for -ErrorAction parameter
                     return
                 }
-
+                $installedScriptInfoVersion = $result["Version"]
+                $installedScriptInfoPrerelease = $result["Prerelease"]
+                $installedScriptFullVersion = $result["FullVersion"]
 
                 if(-not $installUpdate)
                 {
-                    $minVersion,$minPrerelease,$minFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
+                    $result = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
                     if (-not $result)
                     {
                         # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                         # returning to avoid further execution when different values are specified for -ErrorAction parameter
                         return
                     }
-                    
+                    $minVersion = $result["Version"]
+                    $minPrerelease = $result["Prerelease"]
+                    $minFullVersion = $result["FullVersion"]
+
                     if( (-not $MinimumVersion -and ($galleryItemFullVersion -ne $installedScriptFullVersion)) -or 
                         ($MinimumVersion -and (Compare-PrereleaseVersions -FirstItemVersion $installedScriptInfoVersion `
                                                                           -FirstItemPrerelease $installedScriptInfoPrerelease `
@@ -11183,13 +11207,16 @@ function Install-PackageUtility
                     return
                 }
 
-                $pkgVersion,$pkgPrerelease,$pkgFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $pkg.Version -CallerPSCmdlet $PSCmdlet
+                $result = ValidateAndGet-VersionPrereleaseStrings -Version $pkg.Version -CallerPSCmdlet $PSCmdlet
                 if (-not $result)
                 {
                     # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                     # returning to avoid further execution when different values are specified for -ErrorAction parameter
                     return
                 }
+                $pkgVersion = $result["Version"]
+                $pkgPrerelease = $result["Prerelease"]
+                $pkgFullVersion = $result["FullVersion"]
 
                 $destinationModulePath = Microsoft.PowerShell.Management\Join-Path -Path $moduleDestination -ChildPath $pkg.Name
 
@@ -11319,13 +11346,16 @@ function Install-PackageUtility
                     {
                         if(-not $Force -and $InstalledModuleInfo2)
                         {
-                            $installedModuleVersion,$installedModulePrerelease,$installedModuleFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledModuleInfo2.Version -CallerPSCmdlet $PSCmdlet
+                            $result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledModuleInfo2.Version -CallerPSCmdlet $PSCmdlet
                             if (-not $result)
                             {
                                 # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                                 return
                             }
+                            $installedModuleVersion = $result["Version"]
+                            $installedModulePrerelease = $result["Prerelease"]
+                            $installedModuleFullVersion = $result["FullVersion"]
 
                             if(Test-ModuleSxSVersionSupport)
                             {
@@ -11470,13 +11500,14 @@ function Install-PackageUtility
                     {
                         if(-not $Force -and $InstalledScriptInfo2)
                         {
-                            $installedScriptVersion,$installedScriptPrerelease,$installedScriptFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledScriptInfo2.Version -CallerPSCmdlet $PSCmdlet
+                            $result = ValidateAndGet-VersionPrereleaseStrings -Version $InstalledScriptInfo2.Version -CallerPSCmdlet $PSCmdlet
                             if (-not $result)
                             {
                                 # ValidateAndGet-VersionPrereleaseStrings throws the error. 
                                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                                 return
                             }
+                            $installedScriptFullVersion = $result["FullVersion"]
 
                             if(-not $installUpdate)
                             {
@@ -12189,24 +12220,28 @@ function Test-ItemPrereleaseVersionRequirements
         $MaximumVersion
     )
 
-    $psgetitemVersion,$psgetitemPrerelease,$psgetitemFullVersion,$psgetitemResult = ValidateAndGet-VersionPrereleaseStrings -Version $Version -CallerPSCmdlet $PSCmdlet
-    if (-not $psgetitemResult)
+    $result = ValidateAndGet-VersionPrereleaseStrings -Version $Version -CallerPSCmdlet $PSCmdlet
+    if (-not $result)
     {
         # ValidateAndGet-VersionPrereleaseStrings throws the error.
         # returning to avoid further execution when different values are specified for -ErrorAction parameter
         return
     }
+    $psgetitemVersion = $result["Version"]
+    $psgetitemPrerelease = $result["Prerelease"]
+    $psgetitemFullVersion = $result["FullVersion"]
 
     if($RequiredVersion)
     {
-        $reqVersion,$reqPrerelease,$reqFullVersion,$reqResult = ValidateAndGet-VersionPrereleaseStrings -Version $RequiredVersion -CallerPSCmdlet $PSCmdlet
+        $reqResult = ValidateAndGet-VersionPrereleaseStrings -Version $RequiredVersion -CallerPSCmdlet $PSCmdlet
         if (-not $reqResult)
         {
             # ValidateAndGet-VersionPrereleaseStrings throws the error.
             # returning to avoid further execution when different values are specified for -ErrorAction parameter
             return
         }
-        
+        $reqFullVersion = $reqResult["FullVersion"]
+
         return ($reqFullVersion -eq $psgetitemFullVersion) 
     }
     else
@@ -12214,13 +12249,15 @@ function Test-ItemPrereleaseVersionRequirements
         $minimumBoundMet = $false
         if ($MinimumVersion)
         {
-            $minVersion,$minPrerelease,$minFullVersion,$minResult = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
+            $minResult = ValidateAndGet-VersionPrereleaseStrings -Version $MinimumVersion -CallerPSCmdlet $PSCmdlet
             if (-not $minResult)
             {
                 # ValidateAndGet-VersionPrereleaseStrings throws the error.
                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                 return
             }
+            $minVersion = $minResult["Version"]
+            $minPrerelease = $minResult["Prerelease"]
 
             # minimum bound is met if PSGet item version is greater than or equal to minimum version
             if (-not (Compare-PrereleaseVersions -FirstItemVersion $psgetitemVersion `
@@ -12239,13 +12276,15 @@ function Test-ItemPrereleaseVersionRequirements
         $maximumBoundMet = $false
         if ($MaximumVersion)
         {
-            $maxVersion,$maxPrerelease,$maxFullVersion,$maxResult = ValidateAndGet-VersionPrereleaseStrings -Version $MaximumVersion -CallerPSCmdlet $PSCmdlet
+            $maxResult = ValidateAndGet-VersionPrereleaseStrings -Version $MaximumVersion -CallerPSCmdlet $PSCmdlet
             if (-not $maxResult)
             {
                 # ValidateAndGet-VersionPrereleaseStrings throws the error.
                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                 return
             }
+            $maxVersion = $maxResult["Version"]
+            $maxPrerelease = $maxResult["Prerelease"]
 
             # maximum bound is met if PSGet item version is less than or equal to maximum version
             if (-not (Compare-PrereleaseVersions -FirstItemVersion $maxVersion `
@@ -13176,15 +13215,14 @@ function Test-ScriptInstalled
     $scriptPaths = @($script:ProgramFilesScriptsPath, $script:MyDocumentsScriptsPath)    
     $scriptInfos = @()
 
-    $reqVersion,$reqPrerelease,$reqFullVersion,$reqResult = $null,$null,$null,$null
     if ($RequiredVersion)
     {
-        $reqVersion,$reqPrerelease,$reqFullVersion,$reqResult = ValidateAndGet-VersionPrereleaseStrings -Version $RequiredVersion -CallerPSCmdlet $PSCmdlet
-        if (-not $result)
+        $reqResult = ValidateAndGet-VersionPrereleaseStrings -Version $RequiredVersion -CallerPSCmdlet $PSCmdlet
+        if (-not $reqResult)
         {
-    
             return
         }
+        $reqFullVersion = $reqResult["FullVersion"]
     }
     
 
@@ -13223,11 +13261,12 @@ function Test-ScriptInstalled
     }
 
     $scriptInfo = $scriptInfos | Microsoft.PowerShell.Core\Where-Object {
-                                                                $thisVersion,$thisPrerelease,$thisFullVersion,$thisResult = ValidateAndGet-VersionPrereleaseStrings -Version $_.Version -CallerPSCmdlet $PSCmdlet
+                                                                $thisResult = ValidateAndGet-VersionPrereleaseStrings -Version $_.Version -CallerPSCmdlet $PSCmdlet
                                                                 if (-not $thisResult)
                                                                 {
                                                                     return
                                                                 }
+                                                                $thisFullVersion = $thisResult["FullVersion"]
                                                                 (-not $RequiredVersion) -or ($reqFullVersion -eq $thisFullVersion)
                                                             } | Microsoft.PowerShell.Utility\Select-Object -First 1 -ErrorAction Ignore
 
@@ -14088,15 +14127,14 @@ function Update-ModuleManifest
         
         if ($Prerelease)
         {
-            $validatedVersion,$validatedPrerelease,$validatedFullVersion,$result = ValidateAndGet-VersionPrereleaseStrings -Version $params["ModuleVersion"] `
-                                                                                                                           -Prerelease $Prerelease `
-                                                                                                                           -CallerPSCmdlet $PSCmdlet
+            $result = ValidateAndGet-VersionPrereleaseStrings -Version $params["ModuleVersion"] -Prerelease $Prerelease -CallerPSCmdlet $PSCmdlet
             if (-not $result)
             {
                 # ValidateAndGet-VersionPrereleaseStrings throws the error.
                 # returning to avoid further execution when different values are specified for -ErrorAction parameter
                 return
             }
+            $validatedPrerelease = $result["Prerelease"]
             $Data[$script:Prerelease] = $validatedPrerelease
         }
         
@@ -14548,7 +14586,12 @@ function ValidateAndGet-VersionPrereleaseStrings
     
     $fullVersion = if ($Prerelease) { "$Version-$Prerelease" } else { $Version }
 
-    return $VersionVersion,$Prerelease,$fullVersion,$true
+    $results = @{
+        Version = $VersionVersion
+        Prerelease = $Prerelease
+        FullVersion = $fullVersion
+    }
+    return $results
 }
 
 
