@@ -51,7 +51,8 @@ if($script:IsInbox)
 }
 elseif($script:IsWindows)
 {
-    $script:MyDocumentsPSPath = Microsoft.PowerShell.Management\Join-Path -Path $HOME -ChildPath 'Documents\PowerShell'
+    $script:MyDocumentsFolderPath = [Environment]::GetFolderPath("MyDocuments")
+    $script:MyDocumentsPSPath = Microsoft.PowerShell.Management\Join-Path -Path $script:MyDocumentsFolderPath -ChildPath 'PowerShell'
 }
 else
 {
@@ -138,9 +139,10 @@ $script:NuGetProvider = $null
 # PowerShellGetFormatVersion is in the form of Major.Minor.  
 # Minor is incremented for the backward compatible format change.
 # Major is incremented for the breaking change.
-$script:CurrentPSGetFormatVersion = "1.0"
+$script:PSGetRequireLicenseAcceptanceFormatVersion = [Version]'2.0'
+$script:CurrentPSGetFormatVersion = $script:PSGetRequireLicenseAcceptanceFormatVersion
 $script:PSGetFormatVersion = "PowerShellGetFormatVersion"
-$script:SupportedPSGetFormatVersionMajors = @("1")
+$script:SupportedPSGetFormatVersionMajors = @("1","2")
 $script:ModuleReferences = 'Module References'
 $script:AllVersions = "AllVersions"
 $script:AllowPrereleaseVersions = "AllowPrereleaseVersions"
@@ -434,61 +436,20 @@ Microsoft.PowerShell.Utility\Import-LocalizedData  LocalizedData -filename PSGet
 
 #region Add .Net type for Telemetry APIs and WebProxy
 
-# This code is required to add a .Net type and call the Telemetry APIs 
-# This is required since PowerShell does not support generation of .Net Anonymous types
-#
-$requiredAssembly = @( [System.Management.Automation.PSCmdlet].Assembly.FullName,
-                       [System.Net.IWebProxy].Assembly.FullName, 
-                       [System.Uri].Assembly.FullName )
-
-$script:IsSafeX509ChainHandleAvailable = ($null -ne ('Microsoft.Win32.SafeHandles.SafeX509ChainHandle' -as [Type]))
-
-if($script:IsSafeX509ChainHandleAvailable)
-{  
-   # It is not possible to define a single internal SafeHandle class in PowerShellGet namespace for all the supported versions of .Net Framework including .Net Core.
-   # SafeHandleZeroOrMinusOneIsInvalid is not a public class on .Net Core,
-   # therefore SafeX509ChainHandle will be used if it is available otherwise InternalSafeX509ChainHandle is defined below.
-   #
-   # ChainContext is not available on .Net Core, we must have to use SafeX509ChainHandle on .Net Core.
-   #
-   $SafeX509ChainHandleClassName = 'SafeX509ChainHandle'      
-   $requiredAssembly += [Microsoft.Win32.SafeHandles.SafeX509ChainHandle].Assembly.FullName
-}
-else
+# Check and add InternalWebProxy type
+if( -not ('Microsoft.PowerShell.Commands.PowerShellGet.InternalWebProxy' -as [Type]))
 {
-   # SafeX509ChainHandle is not available on .Net Framework 4.5 or older versions,
-   # therefore InternalSafeX509ChainHandle is defined below.
-   #
-   $SafeX509ChainHandleClassName = 'InternalSafeX509ChainHandle'
-}
+    $RequiredAssembliesForInternalWebProxy = @( 
+        [System.Net.IWebProxy].Assembly.FullName,
+        [System.Uri].Assembly.FullName
+    )
 
-$source = @" 
+    $InternalWebProxySource = @'
 using System; 
 using System.Net;
-using System.Management.Automation;
-using Microsoft.Win32.SafeHandles;
-using System.Security.Cryptography;
-using System.Runtime.InteropServices;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.Versioning;
-using System.Security;
 
 namespace Microsoft.PowerShell.Commands.PowerShellGet 
-{ 
-    public static class Telemetry  
-    { 
-        public static void TraceMessageArtifactsNotFound(string[] artifactsNotFound, string operationName) 
-        { 
-            Microsoft.PowerShell.Telemetry.Internal.TelemetryAPI.TraceMessage(operationName, new { ArtifactsNotFound = artifactsNotFound });
-        }         
-        
-        public static void TraceMessageNonPSGalleryRegistration(string sourceLocationType, string sourceLocationHash, string installationPolicy, string packageManagementProvider, string publishLocationHash, string scriptSourceLocationHash, string scriptPublishLocationHash, string operationName) 
-        { 
-            Microsoft.PowerShell.Telemetry.Internal.TelemetryAPI.TraceMessage(operationName, new { SourceLocationType = sourceLocationType, SourceLocationHash = sourceLocationHash, InstallationPolicy = installationPolicy, PackageManagementProvider = packageManagementProvider, PublishLocationHash = publishLocationHash, ScriptSourceLocationHash = scriptSourceLocationHash, ScriptPublishLocationHash = scriptPublishLocationHash });
-        }         
-        
-    }
-    
+{        
     /// <summary>
     /// Used by Ping-Endpoint function to supply webproxy to HttpClient
     /// We cannot use System.Net.WebProxy because this is not available on CoreClr
@@ -528,8 +489,120 @@ namespace Microsoft.PowerShell.Commands.PowerShellGet
         {
             return false;
         }
-    } 
+    }
+}
+'@
 
+    try
+    {
+        $AddType_prams = @{
+            TypeDefinition = $InternalWebProxySource
+            Language = 'CSharp'
+            ErrorAction = 'SilentlyContinue'
+        }
+        if (-not $script:IsCoreCLR)
+        {
+            $AddType_prams['ReferencedAssemblies'] = $RequiredAssembliesForInternalWebProxy
+        }
+        Add-Type @AddType_prams 
+    }
+    catch
+    {
+        Write-Warning -Message "InternalWebProxy: $_"
+    }
+}
+
+# Check and add Telemetry type
+if(('Microsoft.PowerShell.Telemetry.Internal.TelemetryAPI' -as [Type]) -and
+   -not ('Microsoft.PowerShell.Commands.PowerShellGet.Telemetry' -as [Type]))
+{
+    $RequiredAssembliesForTelemetry = @( 
+        [System.Management.Automation.PSCmdlet].Assembly.FullName
+    )
+
+    $TelemetrySource = @'
+using System; 
+using System.Management.Automation;
+
+namespace Microsoft.PowerShell.Commands.PowerShellGet 
+{ 
+    public static class Telemetry  
+    { 
+        public static void TraceMessageArtifactsNotFound(string[] artifactsNotFound, string operationName) 
+        { 
+            Microsoft.PowerShell.Telemetry.Internal.TelemetryAPI.TraceMessage(operationName, new { ArtifactsNotFound = artifactsNotFound });
+        }
+        
+        public static void TraceMessageNonPSGalleryRegistration(string sourceLocationType, string sourceLocationHash, string installationPolicy, string packageManagementProvider, string publishLocationHash, string scriptSourceLocationHash, string scriptPublishLocationHash, string operationName) 
+        { 
+            Microsoft.PowerShell.Telemetry.Internal.TelemetryAPI.TraceMessage(operationName, new { SourceLocationType = sourceLocationType, SourceLocationHash = sourceLocationHash, InstallationPolicy = installationPolicy, PackageManagementProvider = packageManagementProvider, PublishLocationHash = publishLocationHash, ScriptSourceLocationHash = scriptSourceLocationHash, ScriptPublishLocationHash = scriptPublishLocationHash });
+        }        
+    }
+}
+'@
+
+    try
+    {
+        $AddType_prams = @{
+            TypeDefinition = $TelemetrySource
+            Language = 'CSharp'
+            ErrorAction = 'SilentlyContinue'
+        }
+        $AddType_prams['ReferencedAssemblies'] = $RequiredAssembliesForTelemetry
+        Add-Type @AddType_prams
+    }
+    catch
+    {
+        Write-Warning -Message "Telemetry: $_"
+    }
+}
+# Turn ON Telemetry if the infrastructure is present on the machine
+$script:TelemetryEnabled = $false
+if('Microsoft.PowerShell.Commands.PowerShellGet.Telemetry' -as [Type])
+{
+    $telemetryMethods = ([Microsoft.PowerShell.Commands.PowerShellGet.Telemetry] | Get-Member -Static).Name
+    if ($telemetryMethods.Contains("TraceMessageArtifactsNotFound") -and $telemetryMethods.Contains("TraceMessageNonPSGalleryRegistration"))
+    {
+        $script:TelemetryEnabled = $true
+    }
+}
+
+# Check and add Win32Helpers type
+$script:IsSafeX509ChainHandleAvailable = ($null -ne ('Microsoft.Win32.SafeHandles.SafeX509ChainHandle' -as [Type]))
+if($script:IsWindows -and -not ('Microsoft.PowerShell.Commands.PowerShellGet.Win32Helpers' -as [Type]))
+{
+    $RequiredAssembliesForWin32Helpers = @()
+    if($script:IsSafeX509ChainHandleAvailable)
+    {  
+        # It is not possible to define a single internal SafeHandle class in PowerShellGet namespace for all the supported versions of .Net Framework including .Net Core.
+        # SafeHandleZeroOrMinusOneIsInvalid is not a public class on .Net Core,
+        # therefore SafeX509ChainHandle will be used if it is available otherwise InternalSafeX509ChainHandle is defined below.
+        #
+        # ChainContext is not available on .Net Core, we must have to use SafeX509ChainHandle on .Net Core.
+        #
+        $SafeX509ChainHandleClassName = 'SafeX509ChainHandle'      
+        $RequiredAssembliesForWin32Helpers += [Microsoft.Win32.SafeHandles.SafeX509ChainHandle].Assembly.FullName
+    }
+    else
+    {
+        # SafeX509ChainHandle is not available on .Net Framework 4.5 or older versions,
+        # therefore InternalSafeX509ChainHandle is defined below.
+        #
+        $SafeX509ChainHandleClassName = 'InternalSafeX509ChainHandle'
+    }
+
+    $Win32HelpersSource = @" 
+using System; 
+using System.Net;
+using Microsoft.Win32.SafeHandles;
+using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using System.Runtime.ConstrainedExecution;
+using System.Runtime.Versioning;
+using System.Security;
+
+namespace Microsoft.PowerShell.Commands.PowerShellGet 
+{ 
     [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
     public struct CERT_CHAIN_POLICY_PARA {
         public CERT_CHAIN_POLICY_PARA(int size) {
@@ -710,53 +783,22 @@ $(if($script:IsSafeX509ChainHandleAvailable)
 } 
 "@ 
 
-# Telemetry is turned off by default.
-$script:TelemetryEnabled = $false
-
-try
-{
-    # If the telemetry namespace/methods are not found flow goes to the catch block where telemetry is disabled
-    $telemetryMethods = ([Microsoft.PowerShell.Commands.PowerShellGet.Telemetry] | Get-Member -Static).Name
-
-    if ($telemetryMethods.Contains("TraceMessageArtifactsNotFound") -and $telemetryMethods.Contains("TraceMessageNonPSGalleryRegistration"))
-    {
-        # Turn ON Telemetry if the infrastructure is present on the machine
-        $script:TelemetryEnabled = $true
-    }
-}
-catch
-{
-    # Ignore the error and try adding the type below
-}
-
-if(-not $script:TelemetryEnabled -and $script:IsWindows)
-{
     try
     {
         $AddType_prams = @{
-            TypeDefinition = $source
+            TypeDefinition = $Win32HelpersSource
             Language = 'CSharp'            
             ErrorAction = 'SilentlyContinue'
         }
-        if (-not $script:IsCoreCLR)
+        if (-not $script:IsCoreCLR -and $RequiredAssembliesForWin32Helpers)
         {
-            $AddType_prams['ReferencedAssemblies'] = $requiredAssembly
+            $AddType_prams['ReferencedAssemblies'] = $RequiredAssembliesForWin32Helpers
         }
-        Add-Type @AddType_prams 
-    
-        # If the telemetry namespace/methods are not found flow goes to the catch block where telemetry is disabled
-        $telemetryMethods = ([Microsoft.PowerShell.Commands.PowerShellGet.Telemetry] | Get-Member -Static).Name
-
-        if ($telemetryMethods.Contains("TraceMessageArtifactsNotFound") -and $telemetryMethods.Contains("TraceMessageNonPSGalleryRegistration"))
-        {
-            # Turn ON Telemetry if the infrastructure is present on the machine
-            $script:TelemetryEnabled = $true
-        }
+        Add-Type @AddType_prams
     }
     catch
     {
-        # Disable Telemetry if there are any issues finding/loading the Telemetry infrastructure
-        $script:TelemetryEnabled = $false
+        Write-Warning -Message "Win32Helpers: $_"
     }
 }
 
@@ -808,7 +850,7 @@ function Publish-Module
         $Credential,
 
         [Parameter()] 
-        [ValidateSet("1.0")]
+        [ValidateSet("2.0")]
         [Version]
         $FormatVersion,
 
@@ -1126,13 +1168,14 @@ function Publish-Module
         $tempModulePath = Microsoft.PowerShell.Management\Join-Path -Path $script:TempPath `
                               -ChildPath "$(Microsoft.PowerShell.Utility\Get-Random)\$moduleName"
 
-        if(-not $FormatVersion)
-        {
-            $tempModulePathForFormatVersion = $tempModulePath
-        }
-        elseif ($FormatVersion -eq "1.0")
+
+        if ($FormatVersion -eq "1.0")
         {
             $tempModulePathForFormatVersion = Microsoft.PowerShell.Management\Join-Path $tempModulePath "Content\Deployment\$script:ModuleReferences\$moduleName"
+        }
+        else
+        {
+            $tempModulePathForFormatVersion = $tempModulePath
         }
 
         $null = Microsoft.PowerShell.Management\New-Item -Path $tempModulePathForFormatVersion -ItemType Directory -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -Confirm:$false -WhatIf:$false
@@ -1634,7 +1677,11 @@ function Save-Module
         [Parameter(ParameterSetName='NameAndPathParameterSet')]
         [Parameter(ParameterSetName='NameAndLiteralPathParameterSet')]
         [switch]
-        $AllowPrerelease
+        $AllowPrerelease,
+
+        [Parameter()]
+        [switch]
+        $AcceptLicense
     )
 
     Begin
@@ -1870,7 +1917,11 @@ function Install-Module
 
         [Parameter(ParameterSetName='NameParameterSet')]
         [switch]
-        $AllowPrerelease
+        $AllowPrerelease,
+
+        [Parameter()]
+        [switch]
+        $AcceptLicense
     )
 
     Begin
@@ -2096,7 +2147,11 @@ function Update-Module
 
         [Parameter()]
         [Switch]
-        $AllowPrerelease
+        $AllowPrerelease,
+
+        [Parameter()]
+        [switch]
+        $AcceptLicense
     )
 
     Begin
@@ -3441,7 +3496,11 @@ function Save-Script
         [Parameter(ParameterSetName='NameAndPathParameterSet')]
         [Parameter(ParameterSetName='NameAndLiteralPathParameterSet')]
         [switch]
-        $AllowPrerelease
+        $AllowPrerelease,
+
+        [Parameter()]
+        [switch]
+        $AcceptLicense
     )
 
     Begin
@@ -3677,7 +3736,11 @@ function Install-Script
 
         [Parameter(ParameterSetName='NameParameterSet')]
         [switch]
-        $AllowPrerelease
+        $AllowPrerelease,
+
+        [Parameter()]
+        [switch]
+        $AcceptLicense
     )
 
     Begin
@@ -3966,7 +4029,11 @@ function Update-Script
 
         [Parameter()]
         [Switch]
-        $AllowPrerelease
+        $AllowPrerelease,
+
+        [Parameter()]
+        [switch]
+        $AcceptLicense
     )
 
     Begin
@@ -6645,7 +6712,7 @@ function Ping-Endpoint
     $results = @{}
 
     $WebProxy = $null
-    if($Proxy -and $script:IsWindows)
+    if($Proxy -and ('Microsoft.PowerShell.Commands.PowerShellGet.InternalWebProxy' -as [Type]))
     {
         $ProxyNetworkCredential = $null
         if($ProxyCredential)
@@ -7392,7 +7459,8 @@ function New-PSGetItemInfo
         if(-not $InstalledDate -and $InstalledDateString)
         {
             $InstalledDate = New-Object System.DateTime
-            if(-not ([System.DateTime]::TryParse($InstalledDateString, ([ref]$InstalledDate))))
+            if(-not (([System.DateTime]::TryParse($InstalledDateString, [System.Globalization.DateTimeFormatInfo]::InvariantInfo, [System.Globalization.DateTimeStyles]::None, ([ref]$InstalledDate))) -or
+                     ([System.DateTime]::TryParse($InstalledDateString, ([ref]$InstalledDate)))))
             {
                 $InstalledDate = $null
             }
@@ -7402,7 +7470,8 @@ function New-PSGetItemInfo
         if(-not $UpdatedDate -and $UpdatedDateString)
         {
             $UpdatedDate = New-Object System.DateTime
-            if(-not ([System.DateTime]::TryParse($UpdatedDateString, ([ref]$UpdatedDate))))
+            if(-not (([System.DateTime]::TryParse($UpdatedDateString, [System.Globalization.DateTimeFormatInfo]::InvariantInfo, [System.Globalization.DateTimeStyles]::None, ([ref]$UpdatedDate))) -or
+                     ([System.DateTime]::TryParse($UpdatedDateString, ([ref]$UpdatedDate)))))
             {
                 $UpdatedDate = $null
             }
@@ -7906,7 +7975,7 @@ function Install-NuGetClientBinaries
 
             $nugetExeFilePath = Microsoft.PowerShell.Management\Join-Path -Path $nugetExeBasePath -ChildPath $script:NuGetExeName
 
-            # Download the NuGet.exe from http://nuget.org/NuGet.exe
+            # Download the NuGet.exe from https://nuget.org/NuGet.exe
             $null = Microsoft.PowerShell.Utility\Invoke-WebRequest -Uri $script:NuGetClientSourceURL `
                                                                    -OutFile $nugetExeFilePath `
                                                                    @AdditionalParams
@@ -8108,29 +8177,60 @@ function ValidateAndGet-ScriptDependencies
                                         WarningAction = 'SilentlyContinue'
                                         Debug = $DebugPreference
                                     }
+            $ReqScriptInfo = @{}
+
             if ($PSBoundParameters.ContainsKey('Credential'))
             {
                 $FindScriptArguments.Add('Credential',$Credential)
             }
-
-            if($DependentScriptInfo.ExternalScriptDependencies -contains $requiredScript)
+            
+            if (-not ($requiredScript -match '^(?<ScriptName>[^:]+)(:(?<Version>[^:\s]+))?$'))
             {
-                Write-Verbose -Message ($LocalizedData.SkippedScriptDependency -f $requiredScript)
+                $message = $LocalizedData.FailedToParseRequiredScripts -f ($requiredScript)
+
+                ThrowError `
+                    -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "FailedToParseRequiredScripts" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+            }
+
+            $scriptName = $Matches['ScriptName']
+            if ($DependentScriptInfo.ExternalScriptDependencies -contains $scriptName)
+            {
+                Write-Verbose -Message ($LocalizedData.SkippedScriptDependency -f $scriptName)
 
                 continue
             }
 
-            $FindScriptArguments['Name'] = $requiredScript
-            $ReqScriptInfo = @{}
-            $ReqScriptInfo['Name'] = $requiredScript
+            if ($Matches.Keys -Contains 'Version')
+            {
+                $ReqScriptInfo = ValidateAndGet-NuspecVersionString -Version $Matches['Version']
+                
+                if($ReqScriptInfo.Keys -Contains 'RequiredVersion')
+                {
+                    $FindScriptArguments['RequiredVersion'] = $ReqScriptInfo['RequiredVersion']
+                }
+                elseif($ReqScriptInfo.Keys -Contains 'MinimumVersion')
+                {
+                    $FindScriptArguments['MinimumVersion'] = $ReqScriptInfo['MinimumVersion']
+                }
+                if($ReqScriptInfo.Keys -Contains 'MaximumVersion')
+                {
+                    $FindScriptArguments['MaximumVersion'] = $ReqScriptInfo['MaximumVersion']
+                }
+            }
 
+            $ReqScriptInfo['Name'] = $scriptName
+            $FindScriptArguments['Name'] = $scriptName
             $psgetItemInfo = Find-Script @FindScriptArguments  | 
-                                        Microsoft.PowerShell.Core\Where-Object {$_.Name -eq $requiredScript} | 
+                                        Microsoft.PowerShell.Core\Where-Object {$_.Name -eq $scriptName} | 
                                             Microsoft.PowerShell.Utility\Select-Object -Last 1 -ErrorAction Ignore
 
             if(-not $psgetItemInfo)
             {
-                $message = $LocalizedData.UnableToResolveScriptDependency -f ('script', $requiredScript, $DependentScriptInfo.Name, $Repository, 'ExternalScriptDependencies')
+                $message = $LocalizedData.UnableToResolveScriptDependency -f ('script', $scriptName, $DependentScriptInfo.Name, $Repository, 'ExternalScriptDependencies')
                 ThrowError -ExceptionName "System.InvalidOperationException" `
                             -ExceptionMessage $message `
                             -ErrorId "UnableToResolveScriptDependency" `
@@ -8143,6 +8243,146 @@ function ValidateAndGet-ScriptDependencies
     }
 
     return $DependenciesDetails
+}
+
+function ValidateAndGet-NuspecVersionString
+{
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]
+        $Version
+    )
+
+    $versionPattern = '^((?<MinRule>[\[\(])?((?<MinVersion>[^:\(\[\)\]\,]+))?((?<Comma>[\,])?(?<MaxVersion>[^:\(\[\)\]\,]+)?)?(?<MaxRule>[\]\)])?)$'
+    $VersionInfo = @{}
+
+    if ( -not ($Version -match $versionPattern))
+    {
+        $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('Invalid Version format', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+        Write-Verbose $message
+        ThrowError -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "UnableToResolveScriptDependency" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+    }
+
+    if ($Matches.Keys -Contains 'MinRule' -xor $Matches.Keys -Contains 'MaxRule')
+    {
+        $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('Minimum and Maximum inclusive/exclusive condition mismatch', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+        Write-Verbose $message
+        ThrowError -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "UnableToResolveScriptDependency" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+    }
+
+    if (-not ($Matches.Keys -Contains 'MinVersion' -or $Matches.Keys -Contains 'MaxVersion'))
+    {
+        $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('No version.', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+        Write-Verbose $message
+        ThrowError -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "UnableToResolveScriptDependency" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+    }
+
+    if ((-not ($Matches.Keys -Contains 'MinRule' -and $Matches.Keys -Contains 'MaxRule')) -and $Matches.Keys -Contains 'Comma')
+    {
+        $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('Invalid version format', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+        Write-Verbose $message
+        ThrowError -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "UnableToResolveScriptDependency" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+    }
+
+    if ($Matches.Keys -Contains 'MaxRule' -and -not ($Matches['MaxRule'] -eq ']') )
+    {
+        $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('Maximum version condition should be inclusive', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+        Write-Verbose $message
+        ThrowError -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "UnableToResolveScriptDependency" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+    }
+
+    if ($Matches.Keys -Contains 'MinVersion' -and $Matches.Keys -Contains 'MaxVersion')
+    {
+        if ($Matches.Keys -Contains 'MinRule' -and $Matches.Keys -Contains 'MaxRule')
+        {
+            if ($Matches['MinRule'] -eq '[')
+            {
+                $VersionInfo['MinimumVersion'] = $Matches['MinVersion']
+                $VersionInfo['MaximumVersion'] = $Matches['MaxVersion']
+            }
+            else
+            {
+                $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('Minimum version condition should be inclusive', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+                Write-Verbose $message
+                ThrowError -ExceptionName "System.ArgumentException" `
+                            -ExceptionMessage $message `
+                            -ErrorId "UnableToResolveScriptDependency" `
+                            -CallerPSCmdlet $CallerPSCmdlet `
+                            -ErrorCategory InvalidOperation
+            }
+        }
+        else
+        {
+            $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ('Minimum and Maximum inclusive/exclusive condition mismatch', $Version, $LocalizedData.RequiredScriptVersoinFormat)
+            Write-Verbose $message
+            ThrowError -ExceptionName "System.ArgumentException" `
+                        -ExceptionMessage $message `
+                        -ErrorId "UnableToResolveScriptDependency" `
+                        -CallerPSCmdlet $CallerPSCmdlet `
+                        -ErrorCategory InvalidOperation
+        }
+
+        return $VersionInfo
+    }
+
+    if ($Matches.Keys -Contains 'MinVersion')
+    {
+        if ($Matches.Keys -Contains 'MinRule' -and $Matches.Keys -Contains 'MaxRule')
+        {
+            if (($Matches['MinRule'] -eq '[') -and ($Matches['MaxRule'] -eq ']'))
+            {
+                $VersionInfo['RequiredVersion'] = $Matches['MinVersion']
+                return $VersionInfo
+            }
+        }
+        else
+        {
+            $VersionInfo['MinimumVersion'] = $Matches['MinVersion']
+            return $VersionInfo
+        }
+
+        $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ("Minimum and Maximum version rules should be inclusive for 'RequiredVersion'", $Version, $LocalizedData.RequiredScriptVersoinFormat)
+        Write-Verbose $message
+        ThrowError -ExceptionName "System.ArgumentException" `
+                    -ExceptionMessage $message `
+                    -ErrorId "UnableToResolveScriptDependency" `
+                    -CallerPSCmdlet $CallerPSCmdlet `
+                    -ErrorCategory InvalidOperation
+    }
+
+    if ($Matches.Keys -Contains 'MaxVersion')
+    {
+        $VersionInfo['MaximumVersion'] = $Matches['MaxVersion']
+        return $VersionInfo
+    }
+
+    $message = $LocalizedData.FailedToParseRequiredScriptsVersion -f ("Failed to parse version string", $Version, $LocalizedData.RequiredScriptVersoinFormat)
+    Write-Verbose $message
+    ThrowError -ExceptionName "System.ArgumentException" `
+                -ExceptionMessage $message `
+                -ErrorId "UnableToResolveScriptDependency" `
+                -CallerPSCmdlet $CallerPSCmdlet `
+                -ErrorCategory InvalidOperation
 }
 
 function ValidateAndGet-RequiredModuleDetails
@@ -8524,6 +8764,7 @@ function Publish-PSArtifactUtility
     $Author = $null
     $CompanyName = $null
     $Copyright = $null
+    $requireLicenseAcceptance = "false"
 
     if($PSModuleInfo)
     {
@@ -8577,6 +8818,65 @@ function Publish-PSArtifactUtility
                     $Version = [string]$Version + "-" + $psmoduleInfoPrereleaseString
                 }
             }
+            
+            if($PSModuleInfo.PrivateData.PSData["RequireLicenseAcceptance"])
+            {
+                $requireLicenseAcceptance = $PSModuleInfo.PrivateData.PSData.requireLicenseAcceptance.ToString().ToLower()
+                if($requireLicenseAcceptance -eq "true")
+                {
+                    if($FormatVersion -and ($FormatVersion.Major -lt $script:PSGetRequireLicenseAcceptanceFormatVersion.Major))
+                    {
+                        $message = $LocalizedData.requireLicenseAcceptanceNotSupported -f($FormatVersion)
+                        ThrowError -ExceptionName "System.InvalidOperationException" `
+                        -ExceptionMessage $message `
+                        -ErrorId "requireLicenseAcceptanceNotSupported" `
+                        -CallerPSCmdlet $PSCmdlet `
+                        -ErrorCategory InvalidData
+                    }
+
+                    if(-not $LicenseUri)
+                    {
+                        $message = $LocalizedData.LicenseUriNotSpecified
+                        ThrowError -ExceptionName "System.InvalidOperationException" `
+                            -ExceptionMessage $message `
+                            -ErrorId "LicenseUriNotSpecified" `
+                            -CallerPSCmdlet $PSCmdlet `
+                            -ErrorCategory InvalidData
+                    }
+
+                    $licenseFile = Get-ChildItem -path $NugetPackageRoot -filter License.txt
+                    if(-not $licenseFile)
+                    {
+                        $message = $LocalizedData.LicenseTxtNotFound
+                        ThrowError -ExceptionName "System.InvalidOperationException" `
+                        -ExceptionMessage $message `
+                        -ErrorId "LicenseTxtNotFound" `
+                        -CallerPSCmdlet $PSCmdlet `
+                        -ErrorCategory InvalidData
+                    }
+
+                    if((Get-Content $licenseFile.FullName) -eq $null)
+                    {
+                        $message = $LocalizedData.LicenseTxtEmpty
+                        ThrowError -ExceptionName "System.InvalidOperationException" `
+                        -ExceptionMessage $message `
+                        -ErrorId "LicenseTxtEmpty" `
+                        -CallerPSCmdlet $PSCmdlet `
+                        -ErrorCategory InvalidData
+                    }
+
+                    #RequireLicenseAcceptance is true, License uri and license.txt exist. Bump Up the FormatVersion
+                    if(-not $FormatVersion)
+                    {
+                        $FormatVersion = $script:CurrentPSGetFormatVersion
+                    }
+                }
+                elseif($requireLicenseAcceptance -ne "false")
+                {
+                    $InvalidValueForRequireLicenseAcceptance = $LocalizedData.InvalidValueBoolean -f ($requireLicenseAcceptance, "requireLicenseAcceptance")
+                    Write-Warning -Message $InvalidValueForRequireLicenseAcceptance
+                } 
+            }               
         }
     }
     else
@@ -8777,7 +9077,14 @@ function Publish-PSArtifactUtility
             $VersionString = "$($Dependency.MinimumVersion)"
         }
 
-        $dependencies += "<dependency id='$($ModuleName)' version='$($VersionString)' />"
+        if ([System.string]::IsNullOrWhiteSpace($VersionString))
+        {
+            $dependencies += "<dependency id='$($ModuleName)'/>"
+        }
+        else 
+        {
+            $dependencies += "<dependency id='$($ModuleName)' version='$($VersionString)' />"
+        }
     }
     
     # Populate the nuspec elements
@@ -8791,11 +9098,11 @@ function Publish-PSArtifactUtility
         <owners>$(Get-EscapedString -ElementValue "$CompanyName")</owners>
         <description>$(Get-EscapedString -ElementValue "$Description")</description>
         <releaseNotes>$(Get-EscapedString -ElementValue "$ReleaseNotes")</releaseNotes>
+        <requireLicenseAcceptance>$($requireLicenseAcceptance.ToString())</requireLicenseAcceptance>
         <copyright>$(Get-EscapedString -ElementValue "$Copyright")</copyright>
         <tags>$(if($Tags){ Get-EscapedString -ElementValue ($Tags -join ' ')})</tags>
         $(if($LicenseUri){
-        "<licenseUrl>$(Get-EscapedString -ElementValue "$LicenseUri")</licenseUrl>
-        <requireLicenseAcceptance>true</requireLicenseAcceptance>"
+         "<licenseUrl>$(Get-EscapedString -ElementValue "$LicenseUri")</licenseUrl>"
         })
         $(if($ProjectUri){
         "<projectUrl>$(Get-EscapedString -ElementValue "$ProjectUri")</projectUrl>"
@@ -9063,7 +9370,7 @@ function ValidateAndAdd-PSScriptInfoEntry
 
         $script:RequiredScripts { 
                                     $KeyName = $script:RequiredScripts
-                                    $Value = $Value -split '[,\s+]' | Microsoft.PowerShell.Core\Where-Object {$_}
+                                    $Value = $Value -split ',(?=[^\[^\(]\w(?!\w+[\)\]]))|\s' | Microsoft.PowerShell.Core\Where-Object {$_}
                                 }
 
         $script:ExternalScriptDependencies { 
@@ -9235,6 +9542,7 @@ function Get-DynamicOptions
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name RoleCapability -ExpectedType StringArray -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name 'AllowPrereleaseVersions' -ExpectedType Switch -IsRequired $false)
                     Write-Output -InputObject (New-DynamicOption -Category $category -Name Command -ExpectedType StringArray -IsRequired $false)
+                    Write-Output -InputObject (New-DynamicOption -Category $category -Name 'AcceptLicense' -ExpectedType Switch -IsRequired $false)
                 }
 
         Source  {
@@ -10715,6 +11023,7 @@ function Install-PackageUtility
     $IsSavePackage = $false
     $Scope = $null
     $NoPathUpdate = $false
+    $AcceptLicense = $false
 
     # take the fastPackageReference and get the package object again.
     $parts = $fastPackageReference -Split '[|]'
@@ -10856,6 +11165,23 @@ function Install-PackageUtility
                     elseif($Force -eq 'true')
                     {
                         $Force = $true
+                    }
+                }
+            }
+
+            if($options.ContainsKey('AcceptLicense'))
+            {
+                $AcceptLicense = $options['AcceptLicense']
+
+                if($AcceptLicense.GetType().ToString() -eq 'System.String')
+                {
+                    if($AcceptLicense -eq 'false')
+                    {
+                        $AcceptLicense = $false
+                    }
+                    elseif($AcceptLicense -eq 'true')
+                    {
+                        $AcceptLicense = $true
                     }
                 }
             }
@@ -11200,6 +11526,9 @@ function Install-PackageUtility
 
             $installedPkgs = $provider.InstallPackage($script:FastPackRefHashtable[$fastPackageReference], $newRequest)
 
+            $YesToAll = $false
+            $NoToAll = $false
+
             foreach($pkg in $installedPkgs)
             {
                 if($request.IsCanceled)
@@ -11309,14 +11638,63 @@ function Install-PackageUtility
                         Write-Error -Message $message -ErrorId "NotSupportedPowerShellGetFormatVersion" -Category InvalidOperation
                         continue
                     }
-                
-                    if(-not $psgItemInfo.PowerShellGetFormatVersion)
+
+                    if($psgItemInfo.PowerShellGetFormatVersion -eq "1.0")
                     {
-                        $sourceModulePath = Microsoft.PowerShell.Management\Join-Path $tempDestination $pkg.Name
+                        $sourceModulePath = Microsoft.PowerShell.Management\Join-Path $tempDestination "$($pkg.Name)\Content\*\$script:ModuleReferences\$($pkg.Name)"
                     }
                     else
                     {
-                        $sourceModulePath = Microsoft.PowerShell.Management\Join-Path $tempDestination "$($pkg.Name)\Content\*\$script:ModuleReferences\$($pkg.Name)"
+                        $sourceModulePath = Microsoft.PowerShell.Management\Join-Path $tempDestination $pkg.Name
+                    }
+                    
+                    #Prompt if module requires license Acceptance
+                    $requireLicenseAcceptance = $false
+                    if($psgItemInfo.PowerShellGetFormatVersion -and
+                       $psgItemInfo.PowerShellGetFormatVersion -ge $script:PSGetRequireLicenseAcceptanceFormatVersion)
+                     {
+                        if($psgItemInfo.AdditionalMetadata -and $psgItemInfo.AdditionalMetadata.requireLicenseAcceptance)
+                        {
+                              $requireLicenseAcceptance = $psgItemInfo.AdditionalMetadata.requireLicenseAcceptance
+                        }
+                    }
+
+                    if($requireLicenseAcceptance -eq $true)
+                    {
+                        if($Force -and -not($AcceptLicense))
+                        {
+                            $message = $LocalizedData.ForceAcceptLicense -f $pkg.Name
+
+                            ThrowError -ExceptionName "System.ArgumentException" `
+                                       -ExceptionMessage $message `
+                                       -ErrorId "ForceAcceptLicense" `
+                                       -CallerPSCmdlet $PSCmdlet `
+                                       -ErrorCategory InvalidArgument
+                        }
+
+                        If (-not ($YesToAll -or $NoToAll -or $AcceptLicense))
+                        {
+                            if(-not(Test-Path -path "$sourceModulePath\License.txt" -PathType Leaf))
+                            {
+                                $message = $LocalizedData.LicenseTxtNotFound
+
+                                ThrowError -ExceptionName "System.ArgumentException" `
+                                           -ExceptionMessage $message `
+                                           -ErrorId "LicenseTxtNotFound" `
+                                           -CallerPSCmdlet $PSCmdlet `
+                                           -ErrorCategory ObjectNotFound
+                            }                            
+                            $LicenseFilePath = Join-Path $sourceModulePath "License.txt"
+                            $FormattedEula = (Get-Content -Path $LicenseFilePath) -Join "`r`n"
+                            $message = $FormattedEula + "`r`n" + ($LocalizedData.AcceptanceLicenseQuery -f $pkg.Name)
+                            $title = $LocalizedData.AcceptLicense
+                            $result = $request.ShouldContinue($message, $title, [ref]$yesToAll, [ref]$NoToAll)
+                            if(($result -eq $false) -or ($NoToAll -eq $true))
+                            {
+                                Write-Warning -Message $LocalizedData.UserDeclinedLicenseAcceptance
+                                return
+                            }
+                        }
                     }
 
                     $CurrentModuleInfo = $null
@@ -12399,12 +12777,12 @@ function New-SoftwareIdentityFromPackage
 
     if($InstalledDate)
     {
-        $details.Add( 'installeddate' , $InstalledDate.ToString() )
+        $details.Add( 'installeddate' , $InstalledDate.ToString('O', [System.Globalization.DateTimeFormatInfo]::InvariantInfo) )
     }
 
     if($UpdatedDate)
     {
-        $details.Add( 'updateddate' , $UpdatedDate.ToString() )
+        $details.Add( 'updateddate' , $UpdatedDate.ToString('O', [System.Globalization.DateTimeFormatInfo]::InvariantInfo) )
     }
 
     # Initialize package source name to the source location
@@ -12694,12 +13072,12 @@ function New-SoftwareIdentityFromPSGetItemInfo
 
     if((Get-Member -InputObject $psgetItemInfo -Name 'InstalledDate') -and $psgetItemInfo.InstalledDate)
     {
-        $details['installeddate'] = $psgetItemInfo.InstalledDate.ToString()
+        $details['installeddate'] = $psgetItemInfo.InstalledDate.ToString('O', [System.Globalization.DateTimeFormatInfo]::InvariantInfo)
     }
 
     if((Get-Member -InputObject $psgetItemInfo -Name 'UpdatedDate') -and $psgetItemInfo.UpdatedDate)
     {
-        $details['updateddate'] = $psgetItemInfo.UpdatedDate.ToString()
+        $details['updateddate'] = $psgetItemInfo.UpdatedDate.ToString('O', [System.Globalization.DateTimeFormatInfo]::InvariantInfo)
     }
 
     if(Get-Member -InputObject $psgetItemInfo -Name $script:InstalledLocation)
@@ -13641,7 +14019,13 @@ function Update-ModuleManifest
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [String[]]
-        $PackageManagementProviders
+        $PackageManagementProviders,
+
+        [Parameter()]
+        [switch]
+        $RequireLicenseAcceptance
+
+
     )
 
     if(-not (Microsoft.PowerShell.Management\Test-Path -Path $Path -PathType Leaf))
@@ -14118,6 +14502,10 @@ function Update-ModuleManifest
         {
             $Data["IconUri"] = $IconUri
         }
+        if($RequireLicenseAcceptance)
+        {
+            $Data["RequireLicenseAcceptance"] = $RequireLicenseAcceptance
+        }
 
         if($ReleaseNotes)
         {
@@ -14357,6 +14745,9 @@ function Get-PrivateData
         # Prerelease string of this module
         # Prerelease = ''
 
+        # Flag to indicate whether the module requires explicit user acceptance for install/update/save
+        # RequireLicenseAcceptance = $false
+
         # External dependent modules of this module
         # ExternalModuleDependencies = ''
 
@@ -14375,18 +14766,33 @@ function Get-PrivateData
     $ReleaseNotesEscape = $PrivateData["ReleaseNotes"] -Replace "'","''"
     $ReleaseNotes = $ReleaseNotesEscape | %{"'$_'"}
     $Prerelease = $PrivateData[$script:Prerelease] | %{"'$_'"}
+    $RequireLicenseAcceptance = $PrivateData["RequireLicenseAcceptance"]
     $ExternalModuleDependencies = $PrivateData["ExternalModuleDependencies"] -join "','" | %{"'$_'"} 
-    
-    $DefaultProperties = @("Tags","LicenseUri","ProjectUri","IconUri","ReleaseNotes",$script:Prerelease,"ExternalModuleDependencies")
+    $DefaultProperties = @("Tags","LicenseUri","ProjectUri","IconUri","ReleaseNotes",$script:Prerelease,"ExternalModuleDependencies","RequireLicenseAcceptance")
 
     $ExtraProperties = @()
     foreach($key in $PrivateData.Keys)
     {
         if($DefaultProperties -notcontains $key)
-        {
+        {            
             $PropertyString = "#"+"$key"+ " of this module"
             $PropertyString += "`r`n    "
-            $PropertyString += $key +" = " + "'"+$PrivateData[$key]+"'"
+            if(($PrivateData[$key]).GetType().IsArray)
+            { 
+                $PropertyString += $key +" = " +" @("               
+                $PrivateData[$key] | % { $PropertyString += "'" + $_ +"'" + "," }
+                if($PrivateData[$key].Length -ge 1) 
+                {
+                    #Remove extra ,
+                    $PropertyString = $PropertyString -Replace ".$"
+                }
+                $PropertyString += ")"
+            }
+            else
+            {
+                $PropertyString += $key +" = " + "'"+$PrivateData[$key]+"'"
+            }            
+
             $ExtraProperties += ,$PropertyString
         }
     }
@@ -14436,6 +14842,13 @@ function Get-PrivateData
     {
         $PrereleaseLine = "Prerelease = " +$Prerelease
     }
+
+    $RequireLicenseAcceptanceLine = "# RequireLicenseAcceptance = `$false"
+    if($RequireLicenseAcceptance)
+    {
+        $RequireLicenseAcceptanceLine = "RequireLicenseAcceptance = `$true"
+    }
+
     $ExternalModuleDependenciesLine ="# ExternalModuleDependencies = @()"
     if($ExternalModuleDependencies -ne "''")
     {
@@ -14466,6 +14879,9 @@ function Get-PrivateData
 
         # Prerelease string of this module
         $PrereleaseLine
+
+        # Flag to indicate whether the module requires explicit user acceptance for install/update/save
+        $RequireLicenseAcceptanceLine
 
         # External dependent modules of this module
         $ExternalModuleDependenciesLine
@@ -14499,6 +14915,9 @@ function Get-PrivateData
 
         # Prerelease string of this module
         $PrereleaseLine
+
+        # Flag to indicate whether the module requires explicit user acceptance for install/update
+        $RequireLicenseAcceptanceLine
 
         # External dependent modules of this module
         $ExternalModuleDependenciesLine
